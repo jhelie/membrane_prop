@@ -623,12 +623,6 @@ def set_particles():													#DONE
 	#--------------------------------
 	particles_def_pres = {part: False for part in particles_def["labels"]}
 
-	#check whether a protein or peptide group has been defined to calculate residues details
-	#---------------------------------------------------------------------------------------
-	if args.residuesfilename != "no" and "peptide" not in particles_def["labels"]:
-		print "Error: no 'peptide' particles defined, residues details cannot be calculated. Use '--residues no' or update --particles. See DESCRIPTION in membrane_prop --help."
-		sys.exit(1)
-
 	#build particle groups for normalisation
 	#---------------------------------------
 	particles_groups = {k: [part for part, g in particles_def["group"].items() if g == k] for k in np.unique(particles_def["group"].values())}	
@@ -1369,9 +1363,6 @@ def calculate_stats():													#DONE
 	global z_upper, z_lower
 	global max_density_particles_pc
 	max_density_particles_pc  = float("-inf")
-	if args.residuesfilename != "no":
-		global max_density_residues_pc
-		max_density_residues_pc  = float("-inf")
 	if args.chargesfilename != "no":
 		global max_density_charges
 		global min_density_charges
@@ -1405,8 +1396,6 @@ def calculate_stats():													#DONE
 			#update scale
 			if part != "Na+" and part != "Cl-":
 				max_density_particles_pc = max(max_density_particles_pc, max(density_particles_pc[c_size][part]))
-				if (part == "peptide" or part == "water") and args.residuesfilename != "no":
-					max_density_residues_pc = max(max_density_residues_pc, max(density_particles_pc[c_size][part]))
 	
 	#density profile: charges
 	#------------------------
@@ -1446,8 +1435,7 @@ def density_write_particles():											#DONE
 	output_txt.write("@[relative particles frequency profile - written by membrane_prop v" + str(version_nb) + "]\n")
 	output_txt.write("@Use this file as the argument of the -c option of the script 'xvg_animate' in order to make a time lapse movie of the data in " + str(tmp_file) + ".xvg.\n")
 	output_xvg.write("# [relative particles frequency profile - written by membrane_prop v" + str(version_nb) + "]\n")
- + str(args.dbscan_dist) + " Angstrom, nb of neighbours = " + str(args.dbscan_nb) + "\n")
-	output_xvg.write("# volume properties:\n")
+ 	output_xvg.write("# volume properties:\n")
 	output_xvg.write("#  -> cylinder radius: " + str(args.slices_radius) + " (Angstrom)\n")
 	output_xvg.write("#  -> slices thickness: " + str(args.slices_thick) + " (Angstrom)\n")
 	output_xvg.write("#  -> slices volume: " + str(round(slice_volume,2)) + " (Angstrom3)\n")
