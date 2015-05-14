@@ -739,7 +739,8 @@ def load_MDA_universe():												#DONE
 	global water_pres
 	global water_sele
 	f_start = 0
-		
+	f_end = 1
+	
 	#load universe
 	#-------------
 	if args.xtcfilename == "no":
@@ -1167,7 +1168,10 @@ def calculate_properties(box_dim, f_nb):								#DONE
 	tmp_lower = tmp_lip_coords["lower"][:]
 
 	#calculate middle of bilayer and relative coordinate of upper and lower leaflets assuming the z is the normal to the bilayer
-	tmp_z_delta = (np.average(tmp_lip_coords["upper"][:,2]) - np.average(tmp_lip_coords["lower"][:,2]))/float(2)
+	tmp_z_up = np.average(tmp_lip_coords["upper"][:,2])
+	tmp_z_lw = np.average(tmp_lip_coords["lower"][:,2])
+	tmp_z_delta = (tmp_z_up - tmp_z_lw)/float(2)
+	tmp_z_mid = tmp_z_lw + tmp_z_delta
 	tmp_upper[:,2] -= tmp_z_delta
 	tmp_lower[:,2] += tmp_z_delta
 	tmp_both = np.concatenate((tmp_upper, tmp_lower))
@@ -1181,13 +1185,29 @@ def calculate_properties(box_dim, f_nb):								#DONE
 	voxel_grid.set_minimum_points_number_per_voxel(args.voxel_nb)
 	voxel_coord = voxel_grid.filter().to_array()
 
+	#cache coordinates of particles for which to calculate TM density
+	#================================================================
+	tmp_coord = {}
+	for part in particles_def["labels"]:
+		if particles_def_pres[part]:
+			tmp_coord[part] = fit_coords_into_box(particles_def["sele"][part].coordinates(), box_dim)
+	if args.chargesfilename != "no":
+		tmp_coord_q = {}
+		for charge_g in charges_groups.keys():
+			tmp_coord_q[charge_g] = {}
+			if charges_groups_pres[charge_g]:
+				for q in charges_groups[charge_g]["names"]:
+					tmp_q_sele = charges_groups[charge_g]["sele"][q]
+					if tmp_q_sele.numberOfAtoms() > 0:
+						tmp_coord_q[charge_g][q] = fit_coords_into_box(tmp_q_sele.coordinates(), box_dim)
+
 	#process each occupied voxel
 	#===========================
 	v_counter = 0
 	v_nb = np.shape(voxel_coord)[0]
 	for v_index in range(0, v_nb):
-		
 		#display update
+		nb_voxel_processed += 1
 		v_counter += 1
 		progress = '\r -processing frame ' + str(f_nb+1) + '/' + str(nb_frames_to_process) + ' (every ' + str(args.frames_dt) + ' from ' + str(f_start) + ' to ' + str(f_end) + ' out of ' + str(nb_frames_xtc) + ') and voxel ' + str(v_counter) + '/' + str(v_nb) + '              '
 		sys.stdout.flush()
@@ -1258,48 +1278,42 @@ def calculate_properties(box_dim, f_nb):								#DONE
 			#store relative coordinate of local upper and lower leaflets (once they've been rotated in the x,y plane)
 			z_upper += cog_up_rotated_z - norm_z_middle
 			z_lower += cog_lw_rotated_z - norm_z_middle
-			nb_voxel_processed += 1
 								
 			#calculate rotated voxel center
-			tmp_voxel_center_rot = np.dot(norm_rot, tmp_voxeL_center.T).T
+			tmp_voxel_center_rot = np.dot(norm_rot, tmp_voxel_center.T).T
 		else:
+			z_upper += tmp_z_up - tmp_z_mid
+			z_lower += tmp_z_lw - tmp_z_mid
 			norm_z_middle = tmp_z_mid
 							
 		#density profile: particles
 		#--------------------------
 		for part in particles_def["labels"]:
 			if particles_def_pres[part]:
-				#select particles and retrieve their original coordinates
-				if part == "peptide":
-					tmp_coord = tmp_c_sele_coordinates
-				else:
-					tmp_part_sele = particles_def["sele"][part]
-					tmp_coord = fit_coords_into_box(tmp_part_sele.coordinates(), box_dim)
-				
 				#performs centering/rotating of the referential
 				if args.normal != 'z':
 					#switch to original voxel center
-					tmp_coord -= tmp_voxel_center
+					tmp_coord[part] -= tmp_voxel_center
 													
 					#rotate coordinates so that the local normal of the bilayer is // to the z axis
-					tmp_coord = np.dot(norm_rot, tmp_coord.T).T
+					tmp_coord[part] = np.dot(norm_rot, tmp_coord[part].T).T
 				
 					#center around cluster in the x and y direction
-					tmp_coord[:,0] -= tmp_voxel_center_rot[0]
-					tmp_coord[:,1] -= tmp_voxel_center_rot[1]
+					tmp_coord[part][:,0] -= tmp_voxel_center_rot[0]
+					tmp_coord[part][:,1] -= tmp_voxel_center_rot[1]
 
 					#center around middle of rotated bilayer in z
-					tmp_coord[:,2] -= norm_z_middle
+					tmp_coord[part][:,2] -= norm_z_middle
 				else:					
 					#center around cluster in the x and y direction
-					tmp_coord[:,0] -= tmp_voxel_center[0]
-					tmp_coord[:,1] -= tmp_voxel_center[1]
+					tmp_coord[part][:,0] -= tmp_voxel_center[0]
+					tmp_coord[part][:,1] -= tmp_voxel_center[1]
 									
 					#center z coordinates on the bilayer center z coordinate
-					tmp_coord[:,2] -= norm_z_middle
+					tmp_coord[part][:,2] -= norm_z_middle
 			
 				#keep those within the specified radius
-				tmp_coord_within = tmp_coord[tmp_coord[:,0]**2 + tmp_coord[:,1]**2 < args.slices_radius**2]
+				tmp_coord_within = tmp_coord[part][tmp_coord[part][:,0]**2 + tmp_coord[part][:,1]**2 < args.slices_radius**2]
 				
 				#add number of particles within each slice					
 				tmp_bins_nb = np.zeros(2*bins_nb)
@@ -1316,38 +1330,32 @@ def calculate_properties(box_dim, f_nb):								#DONE
 				if charges_groups_pres[charge_g]:
 					tmp_bins_nb = np.zeros(2*bins_nb)
 					for q in charges_groups[charge_g]["names"]:
-						if charge_g == "peptide":
-							tmp_q_sele = c_sele.selectAtoms(charges_groups[charge_g]["sele_string"][q])
-						else:
-							tmp_q_sele = charges_groups[charge_g]["sele"][q]
-						if tmp_q_sele.numberOfAtoms() > 0:
-							#retrieve original coordinates of charged sele
-							tmp_coord = fit_coords_into_box(tmp_q_sele.coordinates(), box_dim)
-							
+						tmp_q_sele = charges_groups[charge_g]["sele"][q]
+						if tmp_q_sele.numberOfAtoms() > 0:							
 							#performs centering/rotating of the referential
 							if args.normal != 'z':
 								#switch to tmp_voxel_center referential
-								tmp_coord -= tmp_voxel_center
+								tmp_coord_q[charge_g][q] -= tmp_voxel_center
 								
 								#rotate coordinates so that the local normal of the bilayer is // to the z axis
-								tmp_coord = np.dot(norm_rot, tmp_coord.T).T
+								tmp_coord_q[charge_g][q] = np.dot(norm_rot, tmp_coord_q[charge_g][q].T).T
 							
 								#center around cluster in the x and y direction
-								tmp_coord[:,0] -= tmp_voxel_center_rot[0]
-								tmp_coord[:,1] -= tmp_voxel_center_rot[1]
+								tmp_coord_q[charge_g][q][:,0] -= tmp_voxel_center_rot[0]
+								tmp_coord_q[charge_g][q][:,1] -= tmp_voxel_center_rot[1]
 	
 								#center around middle of rotated bilayer in z
-								tmp_coord[:,2] -= norm_z_middle
+								tmp_coord_q[charge_g][q][:,2] -= norm_z_middle
 							else:					
 								#center around cluster in the x and y direction
-								tmp_coord[:,0] -= tmp_voxel_center[0]
-								tmp_coord[:,1] -= tmp_voxel_center[1]
+								tmp_coord_q[charge_g][q][:,0] -= tmp_voxel_center[0]
+								tmp_coord_q[charge_g][q][:,1] -= tmp_voxel_center[1]
 												
 								#center z coordinates on the bilayer center z coordinate
-								tmp_coord[:,2] -= norm_z_middle
+								tmp_coord_q[charge_g][q][:,2] -= norm_z_middle
 							
 							#keep those within the specified radius
-							tmp_coord_within = tmp_coord[tmp_coord[:,0]**2 + tmp_coord[:,1]**2 < args.slices_radius**2]
+							tmp_coord_within = tmp_coord_q[charge_g][q][tmp_coord_q[charge_g][q][:,0]**2 + tmp_coord_q[charge_g][q][:,1]**2 < args.slices_radius**2]
 				
 							#add number of particles within each slice
 							bin_rel = np.floor(tmp_coord_within[:,2]/float(args.slices_thick)).astype(int)
@@ -1395,7 +1403,7 @@ def calculate_stats():													#DONE
 			
 			#update scale
 			if part != "Na+" and part != "Cl-":
-				max_density_particles_pc = max(max_density_particles_pc, max(density_particles_pc[c_size][part]))
+				max_density_particles_pc = max(max_density_particles_pc, max(density_particles_pc[part]))
 	
 	#density profile: charges
 	#------------------------
@@ -1414,8 +1422,8 @@ def calculate_stats():													#DONE
 		density_charges["total"] /= float(tmp_normalisation)
 		
 		#total charge: update scale
-		max_density_charges = max(max_density_charges, max(density_charges[c_size]["total"]))
-		min_density_charges = min(min_density_charges, min(density_charges[c_size]["total"]))
+		max_density_charges = max(max_density_charges, max(density_charges["total"]))
+		min_density_charges = min(min_density_charges, min(density_charges["total"]))
 
 	return
 
@@ -1645,8 +1653,9 @@ print "\nCalculating density profiles..."
 
 #case: structure only
 if args.xtcfilename=="no":
-	calculate_properties(U.trajectory.ts.dimensions, 1)
-
+	calculate_properties(U.trajectory.ts.dimensions, 0)
+	print ""
+	
 #case: browse xtc frames
 else:
 	for f_index in range(0,nb_frames_to_process):
