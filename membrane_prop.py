@@ -1164,17 +1164,19 @@ def calculate_properties(box_dim, f_nb):								#DONE
 	#===========================================
 	#retrieve leaflets coords
 	tmp_lip_coords = {l: fit_coords_into_box(leaflet_sele[l].coordinates(), box_dim) for l in ["lower","upper"]}
-	tmp_upper = tmp_lip_coords["upper"][:]
-	tmp_lower = tmp_lip_coords["lower"][:]
+	tmp_upper = np.zeros((np.shape(tmp_lip_coords["upper"])[0],3))
+	tmp_lower = np.zeros((np.shape(tmp_lip_coords["lower"])[0],3))
+	tmp_upper[:] = tmp_lip_coords["upper"][:]
+	tmp_lower[:] = tmp_lip_coords["upper"][:]
 
 	#calculate middle of bilayer and relative coordinate of upper and lower leaflets assuming the z is the normal to the bilayer
-	tmp_z_up = np.average(tmp_lip_coords["upper"][:,2])
-	tmp_z_lw = np.average(tmp_lip_coords["lower"][:,2])
+	tmp_z_up = np.average(tmp_upper[:,2])
+	tmp_z_lw = np.average(tmp_lower[:,2])
 	tmp_z_delta = (tmp_z_up - tmp_z_lw)/float(2)
 	tmp_z_mid = tmp_z_lw + tmp_z_delta
 	tmp_upper[:,2] -= tmp_z_delta
 	tmp_lower[:,2] += tmp_z_delta
-	tmp_both = np.concatenate((tmp_upper, tmp_lower))
+	tmp_both = np.concatenate((np.float32(tmp_upper), np.float32(tmp_lower)))
 	
 	#downsample using voxel filtering
 	#================================
@@ -1222,7 +1224,7 @@ def calculate_properties(box_dim, f_nb):								#DONE
 			#switch to cluster_cog referential
 			tmp_lip_coords_up = tmp_lip_coords["upper"] - tmp_voxel_center
 			tmp_lip_coords_lw = tmp_lip_coords["lower"] - tmp_voxel_center
-								
+											
 			#identify neighbouring particles in each leaflet
 			tmp_lip_coords_up_within = tmp_lip_coords_up[tmp_lip_coords_up[:,0]**2 + tmp_lip_coords_up[:,1]**2 + tmp_lip_coords_up[:,2]**2 < args.normal_d**2]
 			tmp_lip_coords_lw_within = tmp_lip_coords_lw[tmp_lip_coords_lw[:,0]**2 + tmp_lip_coords_lw[:,1]**2 + tmp_lip_coords_lw[:,2]**2 < args.normal_d**2]
@@ -1271,14 +1273,14 @@ def calculate_properties(box_dim, f_nb):								#DONE
 			cog_up_rotated_z = np.median(tmp_lip_coords_up_within_rotated[:,2])
 			cog_lw_rotated_z = np.median(tmp_lip_coords_lw_within_rotated[:,2])
 			norm_z_middle = cog_lw_rotated_z + (cog_up_rotated_z - cog_lw_rotated_z)/float(2)
-								
+											
 			#TRANSLATION
 			tmp_lip_coords_up_within_rotated[:,2] -= norm_z_middle
 			tmp_lip_coords_lw_within_rotated[:,2] -= norm_z_middle
 			#store relative coordinate of local upper and lower leaflets (once they've been rotated in the x,y plane)
 			z_upper += cog_up_rotated_z - norm_z_middle
 			z_lower += cog_lw_rotated_z - norm_z_middle
-								
+							
 			#calculate rotated voxel center
 			tmp_voxel_center_rot = np.dot(norm_rot, tmp_voxel_center.T).T
 		else:
