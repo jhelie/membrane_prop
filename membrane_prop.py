@@ -1,13 +1,9 @@
 #generic python modules
-#generic python modules
 import argparse
 import operator
 from operator import itemgetter
 import sys, os, shutil
 import os.path
-
-#debug
-from mpl_toolkits.mplot3d import Axes3D
 
 ##########################################################################################
 # RETRIEVE USER INPUTS
@@ -731,10 +727,6 @@ def set_charges():														#DONE
 	return
 def load_MDA_universe():												#DONE
 	
-	#debug
-	global nb_total
-	nb_total = {}
-
 	global U
 	global all_atoms
 	global nb_atoms
@@ -812,9 +804,6 @@ def load_MDA_universe():												#DONE
 	
 	#check for presence of each particle
 	for part in particles_def["labels"]:
-		#debug
-		nb_total[part] = 0
-		
 		particles_def["sele"][part] = U.selectAtoms(particles_def["sele_string"][part])
 		if particles_def["sele"][part].numberOfAtoms() == 0:
 			print " ->warning: particle selection string '" + str(particles_def["sele_string"][part]) + "' returned 0 atoms."
@@ -1319,12 +1308,7 @@ def calculate_properties(box_dim, f_nb):								#DONE
 			if particles_def_pres[part]:
 				#retrieve coords
 				tmp_coord = np.copy(tmp_coord_p[part])
-				
-				#debug
-				#fig = plt.figure()
-				#ax = fig.add_subplot(111, projection='3d')
-				#ax.scatter(tmp_coord[:,0], tmp_coord[:,1], tmp_coord[:,2], c='b', alpha=0.1)
-				
+								
 				#performs centering/rotating of the referential
 				if args.normal != 'z':
 					#switch to voxel center referential
@@ -1343,27 +1327,8 @@ def calculate_properties(box_dim, f_nb):								#DONE
 					#center z coordinates on the bilayer center z coordinate
 					tmp_coord[:,2] -= norm_z_middle
 			
-				#debug
-				#ax.scatter(tmp_coord[:,0], tmp_coord[:,1], tmp_coord[:,2], c='g', alpha=0.2)
-			
 				#keep those within the specified radius
 				tmp_coord_within = tmp_coord[tmp_coord[:,0]**2 + tmp_coord[:,1]**2 < args.slices_radius**2]
-
-				#debug
-				#if part == "CHOL":
-				#	print part, np.shape(tmp_coord_within)[0]
-				nb_total[part] += np.shape(tmp_coord_within)[0]
-
-				#debug
-				#fig = plt.figure()
-				#ax = fig.add_subplot(111, projection='3d')
-				#ax.scatter(tmp_lip_coords_up_centered_within[:,0], tmp_lip_coords_up_centered_within[:,1], tmp_lip_coords_up_centered_within[:,2], c='b', marker='*', alpha=0.5)
-				#ax.scatter(tmp_lip_coords_lw_centered_within[:,0], tmp_lip_coords_lw_centered_within[:,1], tmp_lip_coords_lw_centered_within[:,2], c='r', marker='*', alpha=0.5)
-				#ax.scatter(tmp_lip_coords_up_centered_within_rotated[:,0], tmp_lip_coords_up_centered_within_rotated[:,1], tmp_lip_coords_up_centered_within_rotated[:,2], c='b', alpha=0.5)
-				#ax.scatter(tmp_lip_coords_lw_centered_within_rotated[:,0], tmp_lip_coords_lw_centered_within_rotated[:,1], tmp_lip_coords_lw_centered_within_rotated[:,2], c='r', alpha=0.5)
-				#ax.scatter(tmp_coord_within[:,0], tmp_coord_within[:,1], tmp_coord_within[:,2], c='g', alpha=0.9)
-				#fig.savefig(os.getcwd() + '/' + str(args.output_folder) + '/toto_' + str(v_index) + '_' + str(part) + '.png')
-				#plt.close()
 								
 				#add number of particles within each slice					
 				tmp_bins_nb = np.zeros(2*bins_nb)
@@ -1445,10 +1410,6 @@ def calculate_stats():													#DONE
 	#density profile: particles
 	#--------------------------
 	for part in particles_def["labels"]:
-
-		#debug
-		print part, nb_total[part], density_particles_nb[part]
-
 		if particles_def_pres[part]:
 			#relative density
 			if tmp_normalisation[particles_def["group"][part]] > 0:
