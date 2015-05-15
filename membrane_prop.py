@@ -1250,7 +1250,7 @@ def calculate_properties(box_dim, f_nb):								#DONE
 		#calculate local normal to bilayer
 		#---------------------------------
 		if args.normal != 'z':
-			#switch to cluster_cog referential
+			#switch to voxel center referential
 			tmp_lip_coords_up_centered = coords_center_in_box(tmp_lip_coords["upper"], tmp_voxel_center, box_dim)
 			tmp_lip_coords_lw_centered = coords_center_in_box(tmp_lip_coords["lower"], tmp_voxel_center, box_dim)
 											
@@ -1297,8 +1297,6 @@ def calculate_properties(box_dim, f_nb):								#DONE
 			tmp_lip_coords_lw_centered_within_rotated = np.dot(norm_rot, tmp_lip_coords_lw_centered_within.T).T
 			
 			#identify z coord of local middle of bilayer after rotation
-			#cog_up_rotated = np.average(tmp_lip_coords_up_within_rotated, axis = 0)
-			#cog_lw_rotated = np.average(tmp_lip_coords_lw_within_rotated, axis = 0)
 			cog_up_rotated_z = np.median(tmp_lip_coords_up_centered_within_rotated[:,2])
 			cog_lw_rotated_z = np.median(tmp_lip_coords_lw_centered_within_rotated[:,2])
 			norm_z_middle = cog_lw_rotated_z + (cog_up_rotated_z - cog_lw_rotated_z)/float(2)
@@ -1309,11 +1307,7 @@ def calculate_properties(box_dim, f_nb):								#DONE
 			#store relative coordinate of local upper and lower leaflets (once they've been rotated in the x,y plane)
 			z_upper += cog_up_rotated_z - norm_z_middle
 			z_lower += cog_lw_rotated_z - norm_z_middle
-			
-			#calculate rotated voxel center
-			#tmp_voxel_center_rot = np.dot(norm_rot, tmp_voxel_center.T).T
-			tmp_voxel_center_rot = [0,0,0]
-		
+				
 		else:
 			z_upper += tmp_z_up - tmp_z_mid
 			z_lower += tmp_z_lw - tmp_z_mid
@@ -1333,16 +1327,12 @@ def calculate_properties(box_dim, f_nb):								#DONE
 				
 				#performs centering/rotating of the referential
 				if args.normal != 'z':
-					#switch to original voxel center
+					#switch to voxel center referential
 					tmp_coord = coords_center_in_box(tmp_coord, tmp_voxel_center, box_dim)
 													
 					#rotate coordinates so that the local normal of the bilayer is // to the z axis
 					tmp_coord = np.dot(norm_rot, tmp_coord.T).T
 				
-					#center around cluster in the x and y direction
-					#tmp_coord[:,0] -= tmp_voxel_center_rot[0]
-					#tmp_coord[:,1] -= tmp_voxel_center_rot[1]
-
 					#center around middle of rotated bilayer in z
 					tmp_coord[:,2] -= norm_z_middle
 				else:					
@@ -1397,16 +1387,12 @@ def calculate_properties(box_dim, f_nb):								#DONE
 							
 							#performs centering/rotating of the referential
 							if args.normal != 'z':
-								#switch to tmp_voxel_center referential
-								tmp_coord -= tmp_voxel_center
+								#switch to voxel center referential
+								tmp_coord = coords_center_in_box(tmp_coord, tmp_voxel_center, box_dim)
 								
 								#rotate coordinates so that the local normal of the bilayer is // to the z axis
 								tmp_coord = np.dot(norm_rot, tmp_coord.T).T
-							
-								#center around cluster in the x and y direction
-								tmp_coord[:,0] -= tmp_voxel_center_rot[0]
-								tmp_coord[:,1] -= tmp_voxel_center_rot[1]
-	
+								
 								#center around middle of rotated bilayer in z
 								tmp_coord[:,2] -= norm_z_middle
 							else:					
