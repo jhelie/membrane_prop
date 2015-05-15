@@ -1,4 +1,5 @@
 #generic python modules
+#generic python modules
 import argparse
 import operator
 from operator import itemgetter
@@ -1132,16 +1133,18 @@ def coords_center_in_box(coords, center, box_dim):
 	#this function centers coords around center and apply pbc along x and y
 	#convention: coords between -box_dim/2 and +box_dim/2 along x and y
 	
+	coords_loc = np.copy(coords)
+	
 	#centering
 	#---------
-	coords -= center
+	coords_loc -= center
 	
 	#pbc applied along x and y directions
 	#------------------------------------
-	coords[:,0] -= (np.floor(2*coords[:,0]/float(box_dim[0])) + (1-np.sign(coords[:,0]))/2) * box_dim[0]
-	coords[:,1] -= (np.floor(2*coords[:,1]/float(box_dim[1])) + (1-np.sign(coords[:,1]))/2) * box_dim[1]
+	coords_loc[:,0] -= (np.floor(2*coords_loc[:,0]/float(box_dim[0])) + (1-np.sign(coords_loc[:,0]))/2) * box_dim[0]
+	coords_loc[:,1] -= (np.floor(2*coords_loc[:,1]/float(box_dim[1])) + (1-np.sign(coords_loc[:,1]))/2) * box_dim[1]
 	
-	return coords
+	return coords_loc
 def detect_clusters_connectivity(dist, box_dim):						#DONE
 	
 	#use networkx algorithm
@@ -1219,8 +1222,6 @@ def calculate_properties(box_dim, f_nb):								#DONE
 	for part in particles_def["labels"]:
 		if particles_def_pres[part]:
 			tmp_coord_p[part] = coords_remove_whole(particles_def["sele"][part].coordinates(), box_dim)
-			#debug
-			print part, np.shape(tmp_coord_p[part])[0]
 	if args.chargesfilename != "no":
 		tmp_coord_q = {}
 		for charge_g in charges_groups.keys():
@@ -1250,17 +1251,12 @@ def calculate_properties(box_dim, f_nb):								#DONE
 		#---------------------------------
 		if args.normal != 'z':
 			#switch to cluster_cog referential
-			tmp_lip_coords_up_centered = coords_center_in_box(np.copy(tmp_lip_coords["upper"]), tmp_voxel_center, box_dim)
-			tmp_lip_coords_lw_centered = coords_center_in_box(np.copy(tmp_lip_coords["lower"]), tmp_voxel_center, box_dim)
+			tmp_lip_coords_up_centered = coords_center_in_box(tmp_lip_coords["upper"], tmp_voxel_center, box_dim)
+			tmp_lip_coords_lw_centered = coords_center_in_box(tmp_lip_coords["lower"], tmp_voxel_center, box_dim)
 											
 			#identify neighbouring particles in each leaflet
 			tmp_lip_coords_up_centered_within = tmp_lip_coords_up_centered[tmp_lip_coords_up_centered[:,0]**2 + tmp_lip_coords_up_centered[:,1]**2 + tmp_lip_coords_up_centered[:,2]**2 < args.normal_d**2]
-			tmp_lip_coords_lw_centered_within = tmp_lip_coords_lw_centered[tmp_lip_coords_lw_centered[:,0]**2 + tmp_lip_coords_lw_centered[:,1]**2 + tmp_lip_coords_lw_centered[:,2]**2 < args.normal_d**2]
-			
-			#debug
-			print "up", np.shape(tmp_lip_coords_up_centered_within)[0]
-			print "lw", np.shape(tmp_lip_coords_lw_centered_within)[0]
-			
+			tmp_lip_coords_lw_centered_within = tmp_lip_coords_lw_centered[tmp_lip_coords_lw_centered[:,0]**2 + tmp_lip_coords_lw_centered[:,1]**2 + tmp_lip_coords_lw_centered[:,2]**2 < args.normal_d**2]			
 			if np.shape(tmp_lip_coords_up_centered_within)[0] == 0:
 				print "\nWarning: no neighbouring particles found in the upper leaflet for current voxel. Check the normal and voxel options.\n"
 				continue
@@ -1271,7 +1267,7 @@ def calculate_properties(box_dim, f_nb):								#DONE
 				continue
 			else:
 				cog_lw = np.average(tmp_lip_coords_lw_centered_within, axis = 0)
-			
+						
 			#identify normal vector: case cog
 			if args.normal == 'cog':
 				norm_vec = cog_up - cog_lw
@@ -1313,9 +1309,6 @@ def calculate_properties(box_dim, f_nb):								#DONE
 			#store relative coordinate of local upper and lower leaflets (once they've been rotated in the x,y plane)
 			z_upper += cog_up_rotated_z - norm_z_middle
 			z_lower += cog_lw_rotated_z - norm_z_middle
-			
-			#debug
-			print z_upper, z_lower
 			
 			#calculate rotated voxel center
 			#tmp_voxel_center_rot = np.dot(norm_rot, tmp_voxel_center.T).T
