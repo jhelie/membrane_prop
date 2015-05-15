@@ -5,6 +5,9 @@ from operator import itemgetter
 import sys, os, shutil
 import os.path
 
+#debug
+from mpl_toolkits.mplot3d import Axes3D
+
 ##########################################################################################
 # RETRIEVE USER INPUTS
 ##########################################################################################
@@ -546,7 +549,7 @@ def set_particles():													#DONE
 	#--------------------------------
 	if args.particlesfilename == "mine":
 		particles_def["labels"] = ["peptide","POPC","POPE","POPS","CHOL","water","Na+","Cl-"]
-		
+				
 		#peptide
 		particles_def["group"]["peptide"] = "peptide"
 		particles_def["colour"]["peptide"] = "#262626"					#very dark grey
@@ -727,6 +730,10 @@ def set_charges():														#DONE
 	return
 def load_MDA_universe():												#DONE
 	
+	#debug
+	global nb_total
+	nb_total = {}
+
 	global U
 	global all_atoms
 	global nb_atoms
@@ -804,6 +811,9 @@ def load_MDA_universe():												#DONE
 	
 	#check for presence of each particle
 	for part in particles_def["labels"]:
+		#debug
+		nb_total[part] = 0
+		
 		particles_def["sele"][part] = U.selectAtoms(particles_def["sele_string"][part])
 		if particles_def["sele"][part].numberOfAtoms() == 0:
 			print " ->warning: particle selection string '" + str(particles_def["sele_string"][part]) + "' returned 0 atoms."
@@ -1076,8 +1086,9 @@ def struct_data():
 	density_particles_pc = {part: np.zeros(2*bins_nb) for part in particles_def["labels"]}
 
 	#charges
-	global density_charges
-	density_charges = {q: np.zeros(2*bins_nb) for q in charges_groups.keys() + ["total"]}
+	if args.chargesfilename != "no":
+		global density_charges
+		density_charges = {q: np.zeros(2*bins_nb) for q in charges_groups.keys() + ["total"]}
 
 	return
 	
@@ -1108,10 +1119,27 @@ def get_distances(box_dim):												#DONE
 		dist_matrix = MDAnalysis.analysis.distances.distance_array(np.float32(tmp_proteins_cogs), np.float32(tmp_proteins_cogs), box_dim)
 
 	return dist_matrix
-def fit_coords_into_box(coords, box_dim):
-	
+def coords_remove_whole(coords, box_dim):
+	#this function ensures the coordinates are within 0 and box_dim
+	#convention: coords between 0 and box_dim in all directions
+
 	coords[:,0] -= np.floor(coords[:,0]/float(box_dim[0])) * box_dim[0]
 	coords[:,1] -= np.floor(coords[:,1]/float(box_dim[1])) * box_dim[1]
+	
+	return coords
+def coords_center_in_box(coords, center, box_dim):
+	
+	#this function centers coords around center and apply pbc along x and y
+	#convention: coords between -box_dim/2 and +box_dim/2 along x and y
+	
+	#centering
+	#---------
+	coords -= center
+	
+	#pbc applied along x and y directions
+	#------------------------------------
+	coords[:,0] -= (np.floor(2*coords[:,0]/float(box_dim[0])) + (1-np.sign(coords[:,0]))/2) * box_dim[0]
+	coords[:,1] -= (np.floor(2*coords[:,1]/float(box_dim[1])) + (1-np.sign(coords[:,1]))/2) * box_dim[1]
 	
 	return coords
 def detect_clusters_connectivity(dist, box_dim):						#DONE
@@ -1163,11 +1191,9 @@ def calculate_properties(box_dim, f_nb):								#DONE
 	#create coordinate array of "middle" leaflet
 	#===========================================
 	#retrieve leaflets coords
-	tmp_lip_coords = {l: fit_coords_into_box(leaflet_sele[l].coordinates(), box_dim) for l in ["lower","upper"]}
-	tmp_upper = np.zeros((np.shape(tmp_lip_coords["upper"])[0],3))
-	tmp_lower = np.zeros((np.shape(tmp_lip_coords["lower"])[0],3))
-	tmp_upper[:] = tmp_lip_coords["upper"][:]
-	tmp_lower[:] = tmp_lip_coords["upper"][:]
+	tmp_lip_coords = {l: coords_remove_whole(leaflet_sele[l].coordinates(), box_dim) for l in ["lower","upper"]}
+	tmp_upper = np.copy(tmp_lip_coords["upper"])
+	tmp_lower = np.copy(tmp_lip_coords["lower"])
 
 	#calculate middle of bilayer and relative coordinate of upper and lower leaflets assuming the z is the normal to the bilayer
 	tmp_z_up = np.average(tmp_upper[:,2])
@@ -1189,10 +1215,12 @@ def calculate_properties(box_dim, f_nb):								#DONE
 
 	#cache coordinates of particles for which to calculate TM density
 	#================================================================
-	tmp_coord = {}
+	tmp_coord_p = {}
 	for part in particles_def["labels"]:
 		if particles_def_pres[part]:
-			tmp_coord[part] = fit_coords_into_box(particles_def["sele"][part].coordinates(), box_dim)
+			tmp_coord_p[part] = coords_remove_whole(particles_def["sele"][part].coordinates(), box_dim)
+			#debug
+			print part, np.shape(tmp_coord_p[part])[0]
 	if args.chargesfilename != "no":
 		tmp_coord_q = {}
 		for charge_g in charges_groups.keys():
@@ -1201,7 +1229,7 @@ def calculate_properties(box_dim, f_nb):								#DONE
 				for q in charges_groups[charge_g]["names"]:
 					tmp_q_sele = charges_groups[charge_g]["sele"][q]
 					if tmp_q_sele.numberOfAtoms() > 0:
-						tmp_coord_q[charge_g][q] = fit_coords_into_box(tmp_q_sele.coordinates(), box_dim)
+						tmp_coord_q[charge_g][q] = coords_remove_whole(tmp_q_sele.coordinates(), box_dim)
 
 	#process each occupied voxel
 	#===========================
@@ -1222,22 +1250,27 @@ def calculate_properties(box_dim, f_nb):								#DONE
 		#---------------------------------
 		if args.normal != 'z':
 			#switch to cluster_cog referential
-			tmp_lip_coords_up = tmp_lip_coords["upper"] - tmp_voxel_center
-			tmp_lip_coords_lw = tmp_lip_coords["lower"] - tmp_voxel_center
+			tmp_lip_coords_up_centered = coords_center_in_box(np.copy(tmp_lip_coords["upper"]), tmp_voxel_center, box_dim)
+			tmp_lip_coords_lw_centered = coords_center_in_box(np.copy(tmp_lip_coords["lower"]), tmp_voxel_center, box_dim)
 											
 			#identify neighbouring particles in each leaflet
-			tmp_lip_coords_up_within = tmp_lip_coords_up[tmp_lip_coords_up[:,0]**2 + tmp_lip_coords_up[:,1]**2 + tmp_lip_coords_up[:,2]**2 < args.normal_d**2]
-			tmp_lip_coords_lw_within = tmp_lip_coords_lw[tmp_lip_coords_lw[:,0]**2 + tmp_lip_coords_lw[:,1]**2 + tmp_lip_coords_lw[:,2]**2 < args.normal_d**2]
-			if np.shape(tmp_lip_coords_up_within)[0] == 0:
+			tmp_lip_coords_up_centered_within = tmp_lip_coords_up_centered[tmp_lip_coords_up_centered[:,0]**2 + tmp_lip_coords_up_centered[:,1]**2 + tmp_lip_coords_up_centered[:,2]**2 < args.normal_d**2]
+			tmp_lip_coords_lw_centered_within = tmp_lip_coords_lw_centered[tmp_lip_coords_lw_centered[:,0]**2 + tmp_lip_coords_lw_centered[:,1]**2 + tmp_lip_coords_lw_centered[:,2]**2 < args.normal_d**2]
+			
+			#debug
+			print "up", np.shape(tmp_lip_coords_up_centered_within)[0]
+			print "lw", np.shape(tmp_lip_coords_lw_centered_within)[0]
+			
+			if np.shape(tmp_lip_coords_up_centered_within)[0] == 0:
 				print "\nWarning: no neighbouring particles found in the upper leaflet for current voxel. Check the normal and voxel options.\n"
 				continue
 			else:
-				cog_up = np.average(tmp_lip_coords_up_within, axis = 0)
-			if np.shape(tmp_lip_coords_lw_within)[0] == 0:
+				cog_up = np.average(tmp_lip_coords_up_centered_within, axis = 0)
+			if np.shape(tmp_lip_coords_lw_centered_within)[0] == 0:
 				print "\nWarning: no neighbouring particles found in the lower leaflet for current voxel. Check the normal and voxel options.\n"
 				continue
 			else:
-				cog_lw = np.average(tmp_lip_coords_lw_within, axis = 0)
+				cog_lw = np.average(tmp_lip_coords_lw_centered_within, axis = 0)
 			
 			#identify normal vector: case cog
 			if args.normal == 'cog':
@@ -1246,8 +1279,8 @@ def calculate_properties(box_dim, f_nb):								#DONE
 				norm_vec = norm_vec.reshape((3,1))
 			#identify normal vector: case svd
 			else:
-				tmp_lip_coords_within = np.concatenate((tmp_lip_coords_up_within-cog_up,tmp_lip_coords_lw_within-cog_lw))
-				svd_U, svd_D, svd_V = np.linalg.svd(tmp_lip_coords_within)
+				tmp_lip_coords_centered_within = np.concatenate((coords_center_in_box(tmp_lip_coords_up_centered_within, cog_up, box_dim), coords_center_in_box(tmp_lip_coords_lw_centered_within, cog_lw, box_dim)))
+				svd_U, svd_D, svd_V = np.linalg.svd(tmp_lip_coords_centered_within)
 				norm_vec = svd_V[2].reshape((3,1))
 				#orientate the normal vector so that it goes from inside (lower) to outside (upper) (IMPORTANT: ensures correct + sign convention)
 				tmp_delta_cog = cog_up - cog_lw
@@ -1264,25 +1297,30 @@ def calculate_properties(box_dim, f_nb):								#DONE
 		
 			#ROTATION
 			#rotate neighbouring bilayer in local cluster referential
-			tmp_lip_coords_up_within_rotated = np.dot(norm_rot, tmp_lip_coords_up_within.T).T
-			tmp_lip_coords_lw_within_rotated = np.dot(norm_rot, tmp_lip_coords_lw_within.T).T
+			tmp_lip_coords_up_centered_within_rotated = np.dot(norm_rot, tmp_lip_coords_up_centered_within.T).T
+			tmp_lip_coords_lw_centered_within_rotated = np.dot(norm_rot, tmp_lip_coords_lw_centered_within.T).T
 			
 			#identify z coord of local middle of bilayer after rotation
 			#cog_up_rotated = np.average(tmp_lip_coords_up_within_rotated, axis = 0)
 			#cog_lw_rotated = np.average(tmp_lip_coords_lw_within_rotated, axis = 0)
-			cog_up_rotated_z = np.median(tmp_lip_coords_up_within_rotated[:,2])
-			cog_lw_rotated_z = np.median(tmp_lip_coords_lw_within_rotated[:,2])
+			cog_up_rotated_z = np.median(tmp_lip_coords_up_centered_within_rotated[:,2])
+			cog_lw_rotated_z = np.median(tmp_lip_coords_lw_centered_within_rotated[:,2])
 			norm_z_middle = cog_lw_rotated_z + (cog_up_rotated_z - cog_lw_rotated_z)/float(2)
 											
 			#TRANSLATION
-			tmp_lip_coords_up_within_rotated[:,2] -= norm_z_middle
-			tmp_lip_coords_lw_within_rotated[:,2] -= norm_z_middle
+			tmp_lip_coords_up_centered_within_rotated[:,2] -= norm_z_middle
+			tmp_lip_coords_lw_centered_within_rotated[:,2] -= norm_z_middle
 			#store relative coordinate of local upper and lower leaflets (once they've been rotated in the x,y plane)
 			z_upper += cog_up_rotated_z - norm_z_middle
 			z_lower += cog_lw_rotated_z - norm_z_middle
-							
+			
+			#debug
+			print z_upper, z_lower
+			
 			#calculate rotated voxel center
-			tmp_voxel_center_rot = np.dot(norm_rot, tmp_voxel_center.T).T
+			#tmp_voxel_center_rot = np.dot(norm_rot, tmp_voxel_center.T).T
+			tmp_voxel_center_rot = [0,0,0]
+		
 		else:
 			z_upper += tmp_z_up - tmp_z_mid
 			z_lower += tmp_z_lw - tmp_z_mid
@@ -1292,31 +1330,58 @@ def calculate_properties(box_dim, f_nb):								#DONE
 		#--------------------------
 		for part in particles_def["labels"]:
 			if particles_def_pres[part]:
+				#retrieve coords
+				tmp_coord = np.copy(tmp_coord_p[part])
+				
+				#debug
+				#fig = plt.figure()
+				#ax = fig.add_subplot(111, projection='3d')
+				#ax.scatter(tmp_coord[:,0], tmp_coord[:,1], tmp_coord[:,2], c='b', alpha=0.1)
+				
 				#performs centering/rotating of the referential
 				if args.normal != 'z':
 					#switch to original voxel center
-					tmp_coord[part] -= tmp_voxel_center
+					tmp_coord = coords_center_in_box(tmp_coord, tmp_voxel_center, box_dim)
 													
 					#rotate coordinates so that the local normal of the bilayer is // to the z axis
-					tmp_coord[part] = np.dot(norm_rot, tmp_coord[part].T).T
+					tmp_coord = np.dot(norm_rot, tmp_coord.T).T
 				
 					#center around cluster in the x and y direction
-					tmp_coord[part][:,0] -= tmp_voxel_center_rot[0]
-					tmp_coord[part][:,1] -= tmp_voxel_center_rot[1]
+					#tmp_coord[:,0] -= tmp_voxel_center_rot[0]
+					#tmp_coord[:,1] -= tmp_voxel_center_rot[1]
 
 					#center around middle of rotated bilayer in z
-					tmp_coord[part][:,2] -= norm_z_middle
+					tmp_coord[:,2] -= norm_z_middle
 				else:					
 					#center around cluster in the x and y direction
-					tmp_coord[part][:,0] -= tmp_voxel_center[0]
-					tmp_coord[part][:,1] -= tmp_voxel_center[1]
+					tmp_coord[:,0] -= tmp_voxel_center[0]
+					tmp_coord[:,1] -= tmp_voxel_center[1]
 									
 					#center z coordinates on the bilayer center z coordinate
-					tmp_coord[part][:,2] -= norm_z_middle
+					tmp_coord[:,2] -= norm_z_middle
+			
+				#debug
+				#ax.scatter(tmp_coord[:,0], tmp_coord[:,1], tmp_coord[:,2], c='g', alpha=0.2)
 			
 				#keep those within the specified radius
-				tmp_coord_within = tmp_coord[part][tmp_coord[part][:,0]**2 + tmp_coord[part][:,1]**2 < args.slices_radius**2]
-				
+				tmp_coord_within = tmp_coord[tmp_coord[:,0]**2 + tmp_coord[:,1]**2 < args.slices_radius**2]
+
+				#debug
+				#if part == "CHOL":
+				#	print part, np.shape(tmp_coord_within)[0]
+				nb_total[part] += np.shape(tmp_coord_within)[0]
+
+				#debug
+				#fig = plt.figure()
+				#ax = fig.add_subplot(111, projection='3d')
+				#ax.scatter(tmp_lip_coords_up_centered_within[:,0], tmp_lip_coords_up_centered_within[:,1], tmp_lip_coords_up_centered_within[:,2], c='b', marker='*', alpha=0.5)
+				#ax.scatter(tmp_lip_coords_lw_centered_within[:,0], tmp_lip_coords_lw_centered_within[:,1], tmp_lip_coords_lw_centered_within[:,2], c='r', marker='*', alpha=0.5)
+				#ax.scatter(tmp_lip_coords_up_centered_within_rotated[:,0], tmp_lip_coords_up_centered_within_rotated[:,1], tmp_lip_coords_up_centered_within_rotated[:,2], c='b', alpha=0.5)
+				#ax.scatter(tmp_lip_coords_lw_centered_within_rotated[:,0], tmp_lip_coords_lw_centered_within_rotated[:,1], tmp_lip_coords_lw_centered_within_rotated[:,2], c='r', alpha=0.5)
+				#ax.scatter(tmp_coord_within[:,0], tmp_coord_within[:,1], tmp_coord_within[:,2], c='g', alpha=0.9)
+				#fig.savefig(os.getcwd() + '/' + str(args.output_folder) + '/toto_' + str(v_index) + '_' + str(part) + '.png')
+				#plt.close()
+								
 				#add number of particles within each slice					
 				tmp_bins_nb = np.zeros(2*bins_nb)
 				bin_rel = np.floor(tmp_coord_within[:,2]/float(args.slices_thick)).astype(int)
@@ -1324,7 +1389,7 @@ def calculate_properties(box_dim, f_nb):								#DONE
 				if len(bin_abs) > 0:				
 					tmp_bins_nb = np.histogram(bin_abs, np.arange(2*bins_nb + 1))[0]
 				density_particles_nb[part] += tmp_bins_nb
-		
+						
 		#density profile: charges
 		#------------------------
 		if args.chargesfilename != "no":
@@ -1334,30 +1399,33 @@ def calculate_properties(box_dim, f_nb):								#DONE
 					for q in charges_groups[charge_g]["names"]:
 						tmp_q_sele = charges_groups[charge_g]["sele"][q]
 						if tmp_q_sele.numberOfAtoms() > 0:							
+							#retrieve coords
+							tmp_coord = np.copy(tmp_coord_q[charge_g][q])
+							
 							#performs centering/rotating of the referential
 							if args.normal != 'z':
 								#switch to tmp_voxel_center referential
-								tmp_coord_q[charge_g][q] -= tmp_voxel_center
+								tmp_coord -= tmp_voxel_center
 								
 								#rotate coordinates so that the local normal of the bilayer is // to the z axis
-								tmp_coord_q[charge_g][q] = np.dot(norm_rot, tmp_coord_q[charge_g][q].T).T
+								tmp_coord = np.dot(norm_rot, tmp_coord.T).T
 							
 								#center around cluster in the x and y direction
-								tmp_coord_q[charge_g][q][:,0] -= tmp_voxel_center_rot[0]
-								tmp_coord_q[charge_g][q][:,1] -= tmp_voxel_center_rot[1]
+								tmp_coord[:,0] -= tmp_voxel_center_rot[0]
+								tmp_coord[:,1] -= tmp_voxel_center_rot[1]
 	
 								#center around middle of rotated bilayer in z
-								tmp_coord_q[charge_g][q][:,2] -= norm_z_middle
+								tmp_coord[:,2] -= norm_z_middle
 							else:					
 								#center around cluster in the x and y direction
-								tmp_coord_q[charge_g][q][:,0] -= tmp_voxel_center[0]
-								tmp_coord_q[charge_g][q][:,1] -= tmp_voxel_center[1]
+								tmp_coord[:,0] -= tmp_voxel_center[0]
+								tmp_coord[:,1] -= tmp_voxel_center[1]
 												
 								#center z coordinates on the bilayer center z coordinate
-								tmp_coord_q[charge_g][q][:,2] -= norm_z_middle
+								tmp_coord[:,2] -= norm_z_middle
 							
 							#keep those within the specified radius
-							tmp_coord_within = tmp_coord_q[charge_g][q][tmp_coord_q[charge_g][q][:,0]**2 + tmp_coord_q[charge_g][q][:,1]**2 < args.slices_radius**2]
+							tmp_coord_within = tmp_coord[tmp_coord[:,0]**2 + tmp_coord[:,1]**2 < args.slices_radius**2]
 				
 							#add number of particles within each slice
 							bin_rel = np.floor(tmp_coord_within[:,2]/float(args.slices_thick)).astype(int)
@@ -1398,6 +1466,10 @@ def calculate_stats():													#DONE
 	#density profile: particles
 	#--------------------------
 	for part in particles_def["labels"]:
+
+		#debug
+		print part, nb_total[part], density_particles_nb[part]
+
 		if particles_def_pres[part]:
 			#relative density
 			if tmp_normalisation[particles_def["group"][part]] > 0:
