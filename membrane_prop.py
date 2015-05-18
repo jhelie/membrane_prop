@@ -1148,10 +1148,12 @@ def calculate_properties(box_dim, f_nb):								#DONE
 
 	#cache coordinates of particles for which to calculate TM density
 	#================================================================
+	#particles
 	tmp_coord_p = {}
 	for part in particles_def["labels"]:
 		if particles_def_pres[part]:
 			tmp_coord_p[part] = coords_remove_whole(particles_def["sele"][part].coordinates(), box_dim)
+	#charges
 	if args.chargesfilename != "no":
 		tmp_coord_q = {}
 		for charge_g in charges_groups.keys():
