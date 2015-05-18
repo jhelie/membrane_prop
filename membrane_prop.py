@@ -196,7 +196,7 @@ Leaflets identification
 --beads			: leaflet identification technique, see note 4(a)
 --flipflops		: input file with flipflopping lipids, see note 4(c)
 --leaflets	optimise: leaflet identification technique, see note 4(b)
---use_gro			: use gro file instead of xtc, see note 4(b)
+--use_gro		: use gro file instead of xtc, see note 4(b)
 
 Other options
 -----------------------------------------------------
@@ -442,10 +442,11 @@ else:
 def set_lipids_beads():													#DONE
 
 	global leaflet_sele_string
+	global leaflet_sele_string_original
 
 	#set default beads
 	leaflet_sele_string = "name PO4 or name PO3 or name B1A"
-
+	
 	#use users input
 	if args.beadsfilename != "no":
 		with open(args.beadsfilename) as f:
@@ -458,6 +459,8 @@ def set_lipids_beads():													#DONE
 				lines[0] = lines[0][:-1]
 			leaflet_sele_string = lines[0]
 
+	leaflet_sele_string_original = leaflet_sele_string
+	
 	return
 def set_particles():													#DONE
 
@@ -569,7 +572,6 @@ def set_charges():														#DONE
 	#use default
 	#-----------
 	if args.chargesfilename == "mine":
-		
 		#ions
 		charges_colours["ions"] = "#52A3CC"								#cyan colour
 		charges_groups["ions"] = {}
@@ -585,7 +587,7 @@ def set_charges():														#DONE
 		#lipids
 		charges_colours["lipids"] = "#b2182b"							#dark red
 		charges_groups["lipids"] = {}
-		charges_groups["lipids"]["names"] = ["PO4","NH3-NC3"]			#for PO4 xtc the NH3/NC3 are not there to counterbalance the charge...
+		charges_groups["lipids"]["names"] = ["PO4","NH3-NC3"]			#bear in mind that for PO4 xtc the NH3/NC3 are not there to counterbalance the charge...
 		charges_groups["lipids"]["values"] = {}
 		charges_groups["lipids"]["values"]["PO4"] = -1
 		charges_groups["lipids"]["values"]["NH3-NC3"] = 1
@@ -593,18 +595,6 @@ def set_charges():														#DONE
 		charges_groups["lipids"]["sele_string"] = {}
 		charges_groups["lipids"]["sele_string"]["PO4"] = "name PO4"
 		charges_groups["lipids"]["sele_string"]["NH3-NC3"] = "name NH3 or name NC3"
-		
-		#transportan
-		charges_colours["peptide"] = "#053061"							#dark blue
-		charges_groups["peptide"] = {}
-		charges_groups["peptide"]["names"] = ["pos","neg"]
-		charges_groups["peptide"]["values"] = {}
-		charges_groups["peptide"]["values"]["pos"] = 1
-		charges_groups["peptide"]["values"]["neg"] = -1
-		charges_groups["peptide"]["sele"] = {}
-		charges_groups["peptide"]["sele_string"] = {}
-		charges_groups["peptide"]["sele_string"]["pos"] = "(resnum 1 and resname GLY and name BB) or (resname LYS and name SC2)"
-		charges_groups["peptide"]["sele_string"]["neg"] = "resnum 27 and resname LEU and name BB"
 	
 	#use user supplied
 	#-----------------
@@ -873,6 +863,8 @@ def identify_leaflets():												#DONE
 	#declare variables
 	global leaflet_sele
 	global leaflet_sele_atoms
+	global leaflet_nb_beads_upper
+	global leaflet_nb_beads_lower
 	leaflet_sele = {}
 	leaflet_sele_atoms = {}
 	for l in ["lower","upper","both"]:
@@ -980,6 +972,10 @@ def identify_leaflets():												#DONE
 			leaflet_sele["upper"] = leaflet_sele["both"].selectAtoms("prop z > " + str(tmp_lipids_avg_z))
 			leaflet_sele["lower"] = leaflet_sele["both"].selectAtoms("prop z < " + str(tmp_lipids_avg_z))
 		print " -found 2 leaflets: ", leaflet_sele["upper"].numberOfResidues(), '(upper) and ', leaflet_sele["lower"].numberOfResidues(), '(lower) lipids'
+
+	#store number of beads used
+	leaflet_nb_beads_upper = int(leaflet_sele["upper"].numberOfAtoms())
+	leaflet_nb_beads_lower = int(leaflet_sele["lower"].numberOfAtoms())
 		
 	return
 
@@ -1001,9 +997,12 @@ def struct_data():
 	#-------
 	global z_upper, z_lower
 	global nb_voxel_processed
+	global grid_statistics_upper, grid_statistics_lower
 	z_upper = 0
 	z_lower = 0
-	nb_voxel_processed = 0
+	nb_voxel_processed = 0		
+	grid_statistics_upper = np.zeros((nb_frames_to_process, leaflet_nb_beads_upper))
+	grid_statistics_lower = np.zeros((nb_frames_to_process, leaflet_nb_beads_lower))
 	
 	#particles
 	#---------
@@ -1013,6 +1012,7 @@ def struct_data():
 	density_particles_pc = {part: np.zeros(2*bins_nb) for part in particles_def["labels"]}
 
 	#charges
+	#-------
 	if args.chargesfilename != "no":
 		global density_charges
 		density_charges = {q: np.zeros(2*bins_nb) for q in charges_groups.keys() + ["total"]}
@@ -1114,6 +1114,7 @@ def calculate_properties(box_dim, f_nb):								#DONE
 	
 	global z_upper, z_lower
 	global nb_voxel_processed
+	global grid_statistics_upper, grid_statistics_lower
 	loc_z_axis = np.array([0,0,1])
 	loc_z_axis = loc_z_axis.reshape((3,1))
 		
@@ -1181,8 +1182,14 @@ def calculate_properties(box_dim, f_nb):								#DONE
 			tmp_lip_coords_lw_centered = coords_center_in_box(tmp_lip_coords["lower"], tmp_voxel_center, box_dim)
 											
 			#identify neighbouring particles in each leaflet
-			tmp_lip_coords_up_centered_within = tmp_lip_coords_up_centered[tmp_lip_coords_up_centered[:,0]**2 + tmp_lip_coords_up_centered[:,1]**2 + tmp_lip_coords_up_centered[:,2]**2 < args.normal_d**2]
-			tmp_lip_coords_lw_centered_within = tmp_lip_coords_lw_centered[tmp_lip_coords_lw_centered[:,0]**2 + tmp_lip_coords_lw_centered[:,1]**2 + tmp_lip_coords_lw_centered[:,2]**2 < args.normal_d**2]			
+			selected_upper = tmp_lip_coords_up_centered[:,0]**2 + tmp_lip_coords_up_centered[:,1]**2 + tmp_lip_coords_up_centered[:,2]**2 < args.normal_d**2
+			selected_lower = tmp_lip_coords_lw_centered[:,0]**2 + tmp_lip_coords_lw_centered[:,1]**2 + tmp_lip_coords_lw_centered[:,2]**2 < args.normal_d**2
+			grid_statistics_upper[f_nb, selected_upper] += 1
+			grid_statistics_lower[f_nb, selected_lower] += 1
+			
+			#keep their coords only
+			tmp_lip_coords_up_centered_within = tmp_lip_coords_up_centered[selected_upper]
+			tmp_lip_coords_lw_centered_within = tmp_lip_coords_lw_centered[selected_lower]
 			if np.shape(tmp_lip_coords_up_centered_within)[0] == 0:
 				print "\nWarning: no neighbouring particles found in the upper leaflet for current voxel. Check the normal and voxel options.\n"
 				continue
@@ -1332,6 +1339,36 @@ def calculate_stats():													#DONE
 	z_upper /= float(nb_voxel_processed)
 	z_lower /= float(nb_voxel_processed)
 	
+	#calculate grid coverage statistics
+	#----------------------------------
+	#average nb of times beads are sampled per frame
+	global avg_sampling_upper_avg, avg_sampling_upper_std
+	global avg_sampling_lower_avg, avg_sampling_lower_std
+	avg_sampling_upper_each_frame = np.average(grid_statistics_upper, axis = 1)
+	avg_sampling_lower_each_frame = np.average(grid_statistics_lower, axis = 1)
+	avg_sampling_upper_avg = np.average(avg_sampling_upper_each_frame)
+	avg_sampling_upper_std = np.std(avg_sampling_upper_each_frame)
+	avg_sampling_lower_avg = np.average(avg_sampling_lower_each_frame)
+	avg_sampling_lower_std = np.std(avg_sampling_lower_each_frame)
+	#average % of beads sampled 0 times per frame
+	global upper_pc_zeros_avg, upper_pc_zeros_std
+	global lower_pc_zeros_avg, lower_pc_zeros_std
+	upper_pc_zeros_each_frame = np.sum(grid_statistics_upper == 0, axis = 1) / float(leaflet_nb_beads_upper) * 100
+	lower_pc_zeros_each_frame = np.sum(grid_statistics_lower == 0, axis = 1) / float(leaflet_nb_beads_lower) * 100
+	upper_pc_zeros_avg = np.average(upper_pc_zeros_each_frame)
+	upper_pc_zeros_std = np.std(upper_pc_zeros_each_frame)
+	lower_pc_zeros_avg = np.average(lower_pc_zeros_each_frame)
+	lower_pc_zeros_std = np.std(lower_pc_zeros_each_frame)
+	#average % of beads sampled more than 1 time per frame
+	global upper_pc_mult_avg, upper_pc_mult_std
+	global lower_pc_mult_avg, lower_pc_mult_std
+	upper_pc_mult_each_frame = np.sum(grid_statistics_upper > 1, axis = 1) / float(leaflet_nb_beads_upper) * 100
+	lower_pc_mult_each_frame = np.sum(grid_statistics_lower > 1, axis = 1) / float(leaflet_nb_beads_lower) * 100
+	upper_pc_mult_avg = np.average(upper_pc_mult_each_frame)
+	upper_pc_mult_std = np.std(upper_pc_mult_each_frame)
+	lower_pc_mult_avg = np.average(lower_pc_mult_each_frame)
+	lower_pc_mult_std = np.std(lower_pc_mult_each_frame)
+	
 	#calculate normalisation factor for each group for each size
 	#------------------------------------------------------------
 	tmp_normalisation = {}
@@ -1380,6 +1417,40 @@ def calculate_stats():													#DONE
 #=========================================================================================
 # outputs
 #=========================================================================================
+
+def write_grid_statistics():
+	filename_txt = os.getcwd() + '/' + str(args.output_folder) + '/grid_statistics.txt'
+	output_txt = open(filename_txt, 'w')
+	
+	#general header
+	output_txt.write("[bilayer sampling statistics - written by membrane_prop v" + str(version_nb) + "]\n")
+	
+	#description
+	output_txt.write("\n")
+	output_txt.write("This file summarises sampling statistics of the lipid bilayer given the voxel grid parameters the lipids beads chosen.\n")
+	output_txt.write("\n")
+	output_txt.write("- lipid beads selection: " + str(leaflet_sele_string_original) + "\n")
+	output_txt.write("- number beads in upper: " + str(leaflet_nb_beads_upper) + "\n")
+	output_txt.write("- number beads in lower: " + str(leaflet_nb_beads_lower) + "\n")
+	output_txt.write("- voxel x,y,z dimensions: " + str(args.voxel_x) + ", " + str(args.voxel_y) + ", " + str(args.voxel_z) + "\n")
+	output_txt.write("- voxel min nb of points: " + str(args.voxel_nb) + "\n")
+	
+	#data
+	output_txt.write("\n")
+	output_txt.write("Average number of times each bead is sampled per frame:\n")
+	output_txt.write("-upper: " + str(round(avg_sampling_upper_avg,2)) + " (" + str(round(avg_sampling_upper_std,2)) + ")\n")
+	output_txt.write("-lower: " + str(round(avg_sampling_lower_avg,2)) + " (" + str(round(avg_sampling_lower_std,2)) + ")\n")
+	output_txt.write("\n")
+	output_txt.write("Average % of beads not sampled at all per frame:\n")
+	output_txt.write("-upper: " + str(round(upper_pc_zeros_avg,2)) + " (" + str(round(upper_pc_zeros_std,2)) + ")\n")
+	output_txt.write("-lower: " + str(round(lower_pc_zeros_avg,2)) + " (" + str(round(lower_pc_zeros_std,2)) + ")\n")
+	output_txt.write("\n")
+	output_txt.write("Average % of beads sampled more than once per frame:\n")
+	output_txt.write("-upper: " + str(round(upper_pc_mult_avg,2)) + " (" + str(round(upper_pc_mult_std,2)) + ")\n")
+	output_txt.write("-lower: " + str(round(lower_pc_mult_avg,2)) + " (" + str(round(lower_pc_mult_std,2)) + ")\n")
+	output_txt.close()
+
+	return
 
 def density_write_particles():											#DONE
 
@@ -1630,6 +1701,7 @@ calculate_stats()
 #=========================================================================================
 
 print "\nWriting outputs..."
+write_grid_statistics()
 density_write_particles()
 density_graph_particles()
 if args.chargesfilename != "no":
