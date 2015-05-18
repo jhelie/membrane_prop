@@ -1026,29 +1026,6 @@ def struct_data():
 # core functions
 #=========================================================================================
 
-def get_distances(box_dim):												#DONE
-		
-	#method: use minimum distance between proteins
-	#---------------------------------------------
-	if args.m_algorithm == "min":
-		#pre-process: get protein coordinates
-		tmp_proteins_coords = np.zeros((proteins_nb, nb_atom_per_protein, 3))
-		for p_index in range(0, proteins_nb):
-			tmp_proteins_coords[p_index,:] = fit_coords_into_box(proteins_sele[p_index].coordinates(), box_dim)
-
-		#store min distance between each proteins
-		dist_matrix = 100000 * np.ones((proteins_nb,proteins_nb))
-		for n in range(proteins_nb,1,-1):
-			dist_matrix[proteins_nb-n,proteins_nb-n+1:proteins_nb] = map(lambda pp: np.min(MDAnalysis.analysis.distances.distance_array(np.float32(tmp_proteins_coords[proteins_nb-n,:]), np.float32(tmp_proteins_coords[pp,:]), box_dim)), range(proteins_nb-n+1,proteins_nb))
-			dist_matrix[proteins_nb-n+1:proteins_nb,proteins_nb-n] = dist_matrix[proteins_nb-n,proteins_nb-n+1:proteins_nb]
-											
-	#method: use distance between cog
-	#--------------------------------
-	else:
-		tmp_proteins_cogs = np.asarray(map(lambda p_index: calculate_cog(fit_coords_into_box(proteins_sele[p_index], box_dim), box_dim), range(0,proteins_nb)))
-		dist_matrix = MDAnalysis.analysis.distances.distance_array(np.float32(tmp_proteins_cogs), np.float32(tmp_proteins_cogs), box_dim)
-
-	return dist_matrix
 def coords_remove_whole(coords, box_dim):
 	#this function ensures the coordinates are within 0 and box_dim
 	#convention: coords between 0 and box_dim in all directions
