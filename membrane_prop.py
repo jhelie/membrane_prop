@@ -650,6 +650,7 @@ def set_charges():														#DONE
 	#initialise presence of charges groups
 	#-------------------------------------
 	charges_groups_pres = {charge_g: False for charge_g in charges_groups.keys()}
+	charges_groups_pres_q = {charge_g: {q: False for q in charges_groups[charge_g]["names"]} for charge_g in charges_groups.keys()}
 
 	return
 def load_MDA_universe():												#DONE
@@ -763,6 +764,7 @@ def load_MDA_universe():												#DONE
 				else:
 					charge_pres_any = True
 					charges_groups_pres[charge_g] = True
+					charges_groups_pres_q[charge_g][q] = True
 		if not charge_pres_any:
 			print "Error: no charged particles found, use '--charges no' or supply correct charges definition."
 			sys.exit(1)
@@ -1280,8 +1282,7 @@ def calculate_properties(box_dim, f_nb):								#DONE
 				if charges_groups_pres[charge_g]:
 					tmp_bins_nb = np.zeros(2*bins_nb)
 					for q in charges_groups[charge_g]["names"]:
-						tmp_q_sele = charges_groups[charge_g]["sele"][q]
-						if tmp_q_sele.numberOfAtoms() > 0:							
+						if charges_groups_pres_q[charge_g][q]:
 							#retrieve coords
 							tmp_coord = np.copy(tmp_coord_q[charge_g][q])
 							
