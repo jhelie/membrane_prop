@@ -563,6 +563,7 @@ def set_charges():														#DONE
 	global charges_groups
 	global charges_colours
 	global charges_groups_pres
+	global charges_groups_pres_q
 	charges_groups = {}
 	charges_colours = {}
 	charges_colours["total"] = '#262626'								#very dark grey
@@ -675,7 +676,6 @@ def load_MDA_universe():												#DONE
 			global U_gro
 			U_gro = Universe(args.grofilename)
 		U = Universe(args.grofilename, args.xtcfilename)
-		U_timestep = U.trajectory.dt
 		all_atoms = U.selectAtoms("all")
 		nb_atoms = all_atoms.numberOfAtoms()
 		nb_frames_xtc = U.trajectory.numframes
@@ -689,6 +689,7 @@ def load_MDA_universe():												#DONE
 			nb_frames_to_process = 1
 		#case: xtc is a trajectory
 		else:
+			U_timestep = U.trajectory.dt
 			#sanity check
 			if U.trajectory[nb_frames_xtc-1].time/float(1000) < args.t_start:
 				print "Error: the trajectory duration (" + str(U.trajectory.time/float(1000)) + "ns) is shorted than the starting stime specified (" + str(args.t_start) + "ns)."
