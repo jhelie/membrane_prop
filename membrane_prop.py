@@ -23,115 +23,33 @@ git: https://github.com/jhelie/membrane_prop
 
 [ DESCRIPTION ]
  
-This script plots the density profile along the z axis of groups of particles present
-around transmembrane proteins. Density profiles are broken down by the size of the
-TM clusters.
+This script calculates density profiles along the local normal of bilayer.
 
-A file containing the charged particles can also be supplied to calculate the density
-of charges.
- 
-If you want to calculate densities in a membrane which do not contain any proteins (or
-ignore the presence of proteins) just set '--proteins no'.
+Particles for which to calculate the density are defined via a text file specified
+by --particles. Charges density can similarly be calculated using another text file
+via --charges.
 
-density calculation
--------------------
-Density is calculated based on a cylinder centered on the protein cluster center of 
-geometry. All the particles present in this cylinder are binned into cylinder slices
-based on their distance (along z) to the center of the lipid bilayer. The cylinder
-radius is controlled via --slices_radius and the slices thickness via --slices_thick.
+particles density calculation
+-----------------------------
+Densities are calculated based on transmembrane cylinders oriented along the local
+bilayer normal. Particles present in the cylinder are binned into slices based on
+their distance along the local normal to the local center of the lipid bilayer.
+The cylinders radius and slices thickness are controlled via --slices_radius and
+--slices_thick respectively.
 
-(a) particles selection
-  You can specify the particles for which to plot the density by supplying a file
-  via the --particles option. Each line of this file should follow the following
-  format (without quotation marks):
-   -> 'group,label,colour,MDAnalysis selection string'
- 
-  where 'group' is used to normalise the densities of several particles. By default
-  each particle type is normalised with respect to itself and the following densities
-  are used:
-   -> peptide,peptide,#262626,protein
-   -> CHOL,CHOL,#bdbdbd,resname CHOL and name ROH
-   -> POPC,POPC,#41ab5d,resname POPC and name PO4
-   -> POPE,POPE,#6a51a3,resname POPE and name PO4
-   -> POPS,POPS,#cc4c02,resname POPS and name PO4
-   -> water,water,#1d91c0,resname W
-   -> Na+,Na+,#7bccc4,name NA+
-   -> Cl-,Cl-,#fa9fb5,name CL-
-  
-  Note that the only acceptable protein selection is the whole "protein" string and
-  that it should be labeled as "peptide" and in a group of its own also labeled
-  "peptide". If you're interested in particular sub-selections of proteins, see (b)
-  below.
-   
-(b) protein details: residue types
-  Density profiles can be broken down further for peptides to show the density
-  distribution amongst different residue types. You can group the residues as you
-  wish by supplying a file via the --residues options. Each line of this file
-  should follow the following format:
-  -> 'label,colour,resname1,resname2,...'
-  
-  By default the following residue types are used:
-   -> basic,#253494,ARG,LYS
-   -> polar,#a1d99b,SER,THR,ASN,GLN,HIS		
-   -> negative,#99d8c9,ASP, GLU
-   -> hydrophobic,#993404,VAL,ILE,LEU,MET,PRO,CYS,PHE,TYR,TRP
-   -> backbone,#969696,ALA,GLY
+charge density calculation
+--------------------------
+Charge densities are calculated similarly to particles densities with the exception
+that they are also binned by groups whereby the charges of the groups components are
+summed in order to calculate the net charge contribution of each group.
 
-  WARNING: you need to have defined a particle type called "peptide" in (a) in order
-  to show residue details.
-  If you do not want to show residue details, just use: '--residues no'.
-
-(c) charge density
-  You can specify which particles to take into account for the calculation of the total
-  charge density by supplying a file via the --charges option. Each line of this file
-  should follow the format (without quotation marks):
-   -> 'group_name,colour,charge_name,charge,MDAnalysis selection string for charge'
-
-  The absolute charge for each group will be plotted on the charge density profile. The
-  group colour must be specified for each charge.
-  
-  By default the charged are defined as follows (the peptide charges correspond to that
-  of uncapped transportan):
-   -> ions,#52A3CC,Na+,1,resname NA+
-   -> ions,#52A3CC,CL-,-1,resname CL-
-   -> lipids,#b2182b,-1,phosphate,name PO4
-   -> lipids,#b2182b,1,amine_choline,name NH3 or name NC3
-   -> peptide,#053061,pos,1,(resnum 1 and resname GLY and name BB) or (resname LYS and name SC2)
-   -> peptide,#053061,neg,-1, resnum 27 and resname LEU and name BB
-  (note that the MDAnalysis selection string should not contain any commas)
-
-  If you do not want to calculate charge density, just use: '--charges no'
-
-(d) colour definition
-  Colours can be specified using single letter code (rgbcmykw), hex code  or the name of
-  a colour map (see the matplotlib website for a list of the available colour maps).
-  In case a colour map is used, its name must be specified as the only colour.
-
-detection of transmembrane protein clusters
--------------------------------------------
-Two clustering algorithms can be used to identify protein clusters.
-
-(a) Connectivity based (relies on networkX module):
-  A protein is considered in a cluster if it is within a distance less than --nx_cutoff
-  from another protein. This means that a single protein can act as a connector between
-  two otherwise disconnected protein clusters.
-  This algorithm can be ran using either the minimum distante between proteins (default, 
-  --algorithm 'min') or the distance between their center of geometry (--algorithm 'cog').
-  The 'min' option scales as the square of the number of proteins and can thus be very
-  slow for large systems.
-
-(b) Density based (relies on the sklearn module and its implementation of DBSCAN):
-  A protein is considered in a cluster if is surrounded by at least --db_neighbours other
-  proteins within a radius of --db_radius.
-  This density based approach is usually less suited to the detection of protein
-  clusters but as a general rule the more compact the clusters, the smaller --db_radius
-  the higher --db_neighbours can be - for details on this algorithm see its online
-  documentation.
-  This algorithm is selected by setting the --algorithm option to 'density'.
-
-The identified protein clusters are considered to be transmembrane only if the closest
-lipid headgroup neighbours to the cluster particles are all within the same leaflet.
-In addition to the sizes identified, size groups can be defined - see note 7.
+bilayer sampling
+---------------
+A 3D grid is applied to downsample the set of points used to describe the bilayer (see
+leaflets identification options). This is achieved using Python bindings for the Point
+Cloud Library (http://pointclouds.org/). The dimension of the voxels can be controlled
+in each dimension. Voxel are then approximated by the center of geometry of the points
+they contain. Particles and charge densities are calculated for each populated voxel.
 
 
 [ REQUIREMENTS ]
@@ -139,18 +57,51 @@ In addition to the sizes identified, size groups can be defined - see note 7.
 The following python modules are needed :
  - MDAnalysis
  - matplotlib
- - np
- - sp
+ - numpy
+ - sscipy
  - networkX (if option --algorithm is set to 'min' or 'cog')
- - sklearn (if option --algorithm is set to 'density')
+ - PCL C library and corresponding python bindings
 
 
 [ NOTES ]
 
-1. The density is calculated with respect to the z axis, not the bilayer normal. So the
-   more your system deforms the noiser the less meaningful the results get.
+1. You can specify the particles for which to plot the density by supplying a file
+   via the --particles option. Each line of this file should follow the following
+   format (without quotation marks):
+    -> 'group,label,colour,MDAnalysis selection string'
+ 
+   where 'group' is used to normalise the densities of several particles. By default
+   each particle type is normalised with respect to itself and the following densities
+   are used:
+    -> peptide,peptide,#262626,protein
+    -> CHOL,CHOL,#bdbdbd,resname CHOL and name ROH
+    -> POPC,POPC,#41ab5d,resname POPC and name PO4
+    -> POPE,POPE,#6a51a3,resname POPE and name PO4
+    -> POPS,POPS,#cc4c02,resname POPS and name PO4
+    -> water,water,#1d91c0,resname W
+    -> Na+,Na+,#7bccc4,name NA+
+    -> Cl-,Cl-,#fa9fb5,name CL-
 
-2. Identification of the bilayer leaflets can be controlled via 3 options:
+2. You can specify which particles to take into account for the calculation of the total
+   charge density by supplying a file via the --charges option. Each line of this file
+   should follow the format (without quotation marks):
+    -> 'group_name,colour,charge_name,charge,MDAnalysis selection string for charge'
+
+   The absolute charge for each group will be plotted on the charge density profile. The
+   group colour must be specified for each charge. By default the charged are defined as
+   follows:
+    -> ions,#52A3CC,Na+,1,resname NA+
+    -> ions,#52A3CC,CL-,-1,resname CL-
+    -> lipids,#b2182b,-1,phosphate,name PO4
+    -> lipids,#b2182b,1,amine_choline,name NH3 or name NC3
+  
+   If you do not want to calculate charge density, just use: '--charges no'
+
+3. Colours in the above definition files can be specified using single letter code (rgbcmykw),
+   hex code  or the name of a colour map (see the matplotlib website for a list of available
+   colour maps). In case a colour map is used, its name must be specified as the only colour.
+
+4. Identification of the bilayer leaflets can be controlled via 3 options:
    (a) beads
     By default, the particles taken into account to define leaflet are:e
     -> name PO4 or name PO3 or name B1A
@@ -197,43 +148,19 @@ The following python modules are needed :
     Note that, even when specified, flipflopping lipids will be taken into account when
     calculating densities and charges.   
 
-3. Proteins are detected automatically but you can specify an input file to define your
-   own selection with the --proteins option.
-   In this case the supplied file should contain on each line a protein selection string
-   that can be passed as the argument of the MDAnalysis selectAtoms() routine - for 
-   instance 'bynum 1:344'.
-   
-   If you do not have proteins in your bilayer or do not want to take them into account,
-   just use '--proteins no'.
-
-4. The densities are calculated for each TM cluster size identified but can also be
-   binned into size groups.
-   The size groups are defined by supplying a file with --groups, whose lines all
-   follow the format:
-    -> 'lower_size,upper_size'
-
-   Size groups definition should follow the following rules:
-    -to specify an open ended group use 'max', e.g. '3,max'
-    -groups should be ordered by increasing size and their boundaries should not overlap
-    -boundaries are inclusive so you can specify one size groups with 'size,size,colour'
-    -any cluster size not covered will be labeled as 'other'
- 
 5. There are 3 possible options to determine the local normal to the bilayer. These are
    controlled with the flags --normal and --normal_d:
    (a) 'z': the bilayer is assumed flat in the x,y plane and the z axis is taken to be the
     normal. Best for systems without significant curvature and local deformations. In this
     case the --normal_d flag is ignored.
 
-   (b) 'cog': in this case neighbourhing particles to current cluster of interest are
-    identified in the lower and upper leaflet. The local normal is then considered to be the
-    vector going from the cog of the lower ones to the cog of the upper ones. In each leaflet,
-    neighbouring particles are the particles selected by --beads which are within --normal_d
-    Angstrom of the cog of the protein cluster of interest.
+   (b) 'cog': in this case, within each voxel, --beads particles are identified in each leaflet.
+    The local normal is then considered to be the vector going from the cog of the lower ones
+    to the cog of the upper ones. 
 
-   (c) 'svd': in this case neighbourhing particles to current cluster of interest are
-    identified in the lower and upper leaflet as in (b) above. The normal of the best fitting
-    plane to these particles is obtained by performing a singular value decomposition of their
-    coordinate matrix.
+   (c) 'svd': in this case --beads particles are identified in each voxel and the normal of
+    the best fitting  plane to these particles is obtained by performing a singular value
+    decomposition of their coordinate matrix.
 
  
 [ USAGE ]
@@ -241,7 +168,7 @@ The following python modules are needed :
 Option	      Default  	Description                    
 -----------------------------------------------------
 -f			: structure file [.gro] (required)
--x			: trajectory file [.xtc]
+-x			: trajectory file [.xtc or another .gro]
 -o			: name of output folder
 -b			: beginning time (ns) (the bilayer must exist by then!)
 -e			: ending time (ns)	
@@ -249,27 +176,27 @@ Option	      Default  	Description
  
 Density profile options
 -----------------------------------------------------
---particles		: definition of particles, see 'DESCRIPTION'
---charges		: definition of charged particles, see 'DESCRIPTION' 
+--particles		: definition of particles, see note 1
+--charges		: definition of charged particles, note 2
 --slices_thick	0.5 	: z thickness of the slices (Angstrom)
 --slices_radius	30 	: radius of the slices (Angstrom)
---slices_range	40 	: distance spanned on either side of the bilayer center
+--slices_range	40 	: distance to consider along local normal on either side of the bilayer center
 
 Surface description
 -----------------------------------------------------
 --voxel_x	50	: voxel dimension along x (Angstrom)
 --voxel_y	50	: voxel dimension along y (Angstrom)
 --voxel_z	50	: voxel dimension along z (Angstrom)
---voxel_nb	10	: minium nb of points within a voxel to take it into account
---normal	z	: local normal to bilayer ('z', 'cog' or 'svd'), see note 5
+--voxel_nb	10	: min nb of points within voxels to consider (requires modified PCL bindings)
+--normal	svd	: local normal to bilayer ('z', 'cog' or 'svd'), see note 5
 --normal_d	50	: distance of points to take into account for local normal, see note 5
 
-Lipids identification  
+Leaflets identification  
 -----------------------------------------------------
---beads			: leaflet identification technique, see note 2(a)
---flipflops		: input file with flipflopping lipids, see note 2(c)
---leaflets	optimise: leaflet identification technique, see note 2(b)
---use_gro			: use gro file instead of xtc, see note 2(b)
+--beads			: leaflet identification technique, see note 4(a)
+--flipflops		: input file with flipflopping lipids, see note 4(c)
+--leaflets	optimise: leaflet identification technique, see note 4(b)
+--use_gro			: use gro file instead of xtc, see note 4(b)
 
 Other options
 -----------------------------------------------------
@@ -298,7 +225,7 @@ parser.add_argument('--voxel_x', nargs=1, dest='voxel_x', default=[50], type=flo
 parser.add_argument('--voxel_y', nargs=1, dest='voxel_y', default=[50], type=float, help=argparse.SUPPRESS)
 parser.add_argument('--voxel_z', nargs=1, dest='voxel_z', default=[50], type=float, help=argparse.SUPPRESS)
 parser.add_argument('--voxel_nb', nargs=1, dest='voxel_nb', default=[10], type=int, help=argparse.SUPPRESS)
-parser.add_argument('--normal', dest='normal', choices=['z','cog','svd'], default='z', help=argparse.SUPPRESS)
+parser.add_argument('--normal', dest='normal', choices=['z','cog','svd'], default='svd', help=argparse.SUPPRESS)
 parser.add_argument('--normal_d', nargs=1, dest='normal_d', default=[50], type=float, help=argparse.SUPPRESS)
 
 #lipids identification options
