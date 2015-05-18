@@ -407,8 +407,9 @@ else:
 	#create folders
 	os.mkdir(args.output_folder)	
 	os.mkdir(args.output_folder + "/density")
-	os.mkdir(args.output_folder + "/charge")
-	os.mkdir(args.output_folder + "/pcl")
+	if args.chargesfilename != "no":
+		os.mkdir(args.output_folder + "/charge")
+	#os.mkdir(args.output_folder + "/pcl") #TO DO: save point clouds data structures...
 
 	#create log
 	filename_log = os.getcwd() + '/' + str(args.output_folder) + '/membrane_prop.log'
@@ -682,11 +683,13 @@ def load_MDA_universe():												#DONE
 		U.trajectory.rewind()
 		
 		#case: xtc is a gro
-		if nb_frames_xtc == 1:
+		if args.xtcfilename[-3:] == "gro":
 			if not args.use_gro:
-				print "Warning: the trajectory contains only 1 frame but the --use_gro option has not been specified, see note 4"
+				print "Error: the trajectory is a gro file but the --use_gro option has not been specified: either use --use_gro or run the script using -f only (see note 4)"
+				sys.exit(1)
 			frames_to_process = [0]
 			nb_frames_to_process = 1
+			args.xtcfilename = "no"
 		#case: xtc is a trajectory
 		else:
 			U_timestep = U.trajectory.dt
@@ -701,7 +704,7 @@ def load_MDA_universe():												#DONE
 			if args.t_end != -1:
 				f_end = int((args.t_end*1000 - U.trajectory[0].time) / float(U_timestep))
 				if f_end < 0:
-					print "Error: the starting time specified is before the beginning of the xtc."
+					print "Error: the ending time specified is before the beginning of the xtc."
 					sys.exit(1)
 			else:
 				f_end = nb_frames_xtc - 1
@@ -767,7 +770,6 @@ def load_MDA_universe():												#DONE
 		args.slices_range = U.dimensions[2]/float(2)
 		bins_nb_max = int(floor(args.slices_range/float(args.slices_thick)))
 		
-	
 	#rewind 
 	U.trajectory.rewind()
 	
@@ -1156,9 +1158,8 @@ def calculate_properties(box_dim, f_nb):								#DONE
 			tmp_coord_q[charge_g] = {}
 			if charges_groups_pres[charge_g]:
 				for q in charges_groups[charge_g]["names"]:
-					tmp_q_sele = charges_groups[charge_g]["sele"][q]
-					if tmp_q_sele.numberOfAtoms() > 0:
-						tmp_coord_q[charge_g][q] = coords_remove_whole(tmp_q_sele.coordinates(), box_dim)
+					if charges_groups_pres_q[charge_g][q]:
+						tmp_coord_q[charge_g][q] = coords_remove_whole(charges_groups[charge_g]["sele"][q].coordinates(), box_dim)
 
 	#process each occupied voxel
 	#===========================
