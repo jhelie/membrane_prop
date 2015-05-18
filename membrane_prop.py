@@ -101,7 +101,12 @@ The following python modules are needed :
    hex code  or the name of a colour map (see the matplotlib website for a list of available
    colour maps). In case a colour map is used, its name must be specified as the only colour.
 
-4. Identification of the bilayer leaflets can be controlled via 3 options:
+4. Identification of the bilayer leaflets can be controlled via the 3 options below. Note that
+   by default the gro file -f is only used as a topology file and the 1st frame of the -x file
+   is used to identify leaflets. If you wish to use the gro file instead, for instance in the
+   case that the 1st frame of the xtc is not flat, you need to specify the --use_gro flag but
+   be warned that this might take a few minutes longer on large systems.
+
    (a) beads
     By default, the particles taken into account to define leaflet are:e
     -> name PO4 or name PO3 or name B1A
@@ -131,11 +136,6 @@ The following python modules are needed :
     the average will be considered to be in the lower leaflet.
     This means that the bilayer should be as flat as possible in the 1st frame of the xtc
     file supplied in order to get a meaningful outcome. 
-
-	NOTE: By default the gro file is only used as a topology file and the 1st frame of the
-	xtc is used to identify leaflets. If you wish to use the gro file instead, for instance
-	in the case that the 1st frame of the xtc is not flat, you need to specify the --use_gro
-	flag: be warned that this might take a few minutes longer on large systems.
 
    (c) flipflopping lipids
     In case lipids flipflop during the trajectory, a file listing them can be supplied
@@ -688,34 +688,42 @@ def load_MDA_universe():												#DONE
 		all_atoms = U.selectAtoms("all")
 		nb_atoms = all_atoms.numberOfAtoms()
 		nb_frames_xtc = U.trajectory.numframes
-
 		U.trajectory.rewind()
-		#sanity check
-		if U.trajectory[nb_frames_xtc-1].time/float(1000) < args.t_start:
-			print "Error: the trajectory duration (" + str(U.trajectory.time/float(1000)) + "ns) is shorted than the starting stime specified (" + str(args.t_start) + "ns)."
-			sys.exit(1)
-		if U.trajectory.numframes < args.frames_dt:
-			print "Warning: the trajectory contains fewer frames (" + str(nb_frames_xtc) + ") than the frame step specified (" + str(args.frames_dt) + ")."
-
-		#create list of index of frames to process
-		if args.t_end != -1:
-			f_end = int((args.t_end*1000 - U.trajectory[0].time) / float(U_timestep))
-			if f_end < 0:
-				print "Error: the starting time specified is before the beginning of the xtc."
-				sys.exit(1)
+		
+		#case: xtc is a gro
+		if nb_frames_xtc == 1:
+			if not args.use_gro:
+				print "Warning: the trajectory contains only 1 frame but the --use_gro option has not been specified, see note 4"
+			frames_to_process = [0]
+			nb_frames_to_process = 1
+		#case: xtc is a trajectory
 		else:
-			f_end = nb_frames_xtc - 1
-		if args.t_start != -1:
-			f_start = int((args.t_start*1000 - U.trajectory[0].time) / float(U_timestep))
-			if f_start > f_end:
-				print "Error: the starting time specified is after the end of the xtc."
+			#sanity check
+			if U.trajectory[nb_frames_xtc-1].time/float(1000) < args.t_start:
+				print "Error: the trajectory duration (" + str(U.trajectory.time/float(1000)) + "ns) is shorted than the starting stime specified (" + str(args.t_start) + "ns)."
 				sys.exit(1)
-		if (f_end - f_start)%args.frames_dt == 0:
-			tmp_offset = 0
-		else:
-			tmp_offset = 1
-		frames_to_process = map(lambda f:f_start + args.frames_dt*f, range(0,(f_end - f_start)//args.frames_dt+tmp_offset))
-		nb_frames_to_process = len(frames_to_process)
+			if U.trajectory.numframes < args.frames_dt:
+				print "Warning: the trajectory contains fewer frames (" + str(nb_frames_xtc) + ") than the frame step specified (" + str(args.frames_dt) + ")."
+	
+			#create list of index of frames to process
+			if args.t_end != -1:
+				f_end = int((args.t_end*1000 - U.trajectory[0].time) / float(U_timestep))
+				if f_end < 0:
+					print "Error: the starting time specified is before the beginning of the xtc."
+					sys.exit(1)
+			else:
+				f_end = nb_frames_xtc - 1
+			if args.t_start != -1:
+				f_start = int((args.t_start*1000 - U.trajectory[0].time) / float(U_timestep))
+				if f_start > f_end:
+					print "Error: the starting time specified is after the end of the xtc."
+					sys.exit(1)
+			if (f_end - f_start)%args.frames_dt == 0:
+				tmp_offset = 0
+			else:
+				tmp_offset = 1
+			frames_to_process = map(lambda f:f_start + args.frames_dt*f, range(0,(f_end - f_start)//args.frames_dt+tmp_offset))
+			nb_frames_to_process = len(frames_to_process)
 
 	#check the leaflet selection string is valid
 	test_beads = U.selectAtoms(leaflet_sele_string)
