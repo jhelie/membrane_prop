@@ -999,12 +999,15 @@ def struct_data():
 	#-------
 	global z_upper, z_lower
 	global nb_voxel_processed
-	global grid_statistics_upper, grid_statistics_lower
+	global grid_statistics_upper_coverage, grid_statistics_lower_coverage
+	global grid_statistics_upper_nb_beads, grid_statistics_lower_nb_beads
 	z_upper = 0
 	z_lower = 0
 	nb_voxel_processed = 0		
-	grid_statistics_upper = np.zeros((nb_frames_to_process, leaflet_nb_beads_upper))
-	grid_statistics_lower = np.zeros((nb_frames_to_process, leaflet_nb_beads_lower))
+	grid_statistics_upper_coverage = np.zeros((nb_frames_to_process, leaflet_nb_beads_upper))
+	grid_statistics_lower_coverage = np.zeros((nb_frames_to_process, leaflet_nb_beads_lower))
+	grid_statistics_upper_nb_beads = np.zeros((nb_frames_to_process, 2))
+	grid_statistics_lower_nb_beads = np.zeros((nb_frames_to_process, 2))
 	
 	#particles
 	#---------
@@ -1093,10 +1096,13 @@ def calculate_properties(box_dim, f_nb):								#DONE
 	
 	global z_upper, z_lower
 	global nb_voxel_processed
-	global grid_statistics_upper, grid_statistics_lower
+	global grid_statistics_upper_coverage, grid_statistics_lower_coverage
+	global grid_statistics_upper_nb_beads, grid_statistics_lower_nb_beads
 	loc_z_axis = np.array([0,0,1])
 	loc_z_axis = loc_z_axis.reshape((3,1))
-		
+	tmp_grid_statistics_upper_nb_beads = []
+	tmp_grid_statistics_lower_nb_beads = []
+	
 	#create coordinate array of "middle" leaflet
 	#===========================================
 	#retrieve leaflets coords
@@ -1147,7 +1153,7 @@ def calculate_properties(box_dim, f_nb):								#DONE
 		#display update
 		nb_voxel_processed += 1
 		v_counter += 1
-		progress = '\r -processing frame ' + str(f_nb+1) + '/' + str(nb_frames_to_process) + ' (every ' + str(args.frames_dt) + ' from ' + str(f_start) + ' to ' + str(f_end) + ' out of ' + str(nb_frames_xtc) + ') and voxel ' + str(v_counter) + '/' + str(v_nb) + '              '
+		progress = '\r -processing frame ' + str(f_nb + 1) + '/' + str(nb_frames_to_process) + ' (every ' + str(args.frames_dt) + ' from ' + str(f_start) + ' to ' + str(f_end) + ' out of ' + str(nb_frames_xtc) + ') and voxel ' + str(v_counter) + '/' + str(v_nb) + '              '
 		sys.stdout.flush()
 		sys.stdout.write(progress)
 	
@@ -1164,18 +1170,20 @@ def calculate_properties(box_dim, f_nb):								#DONE
 			#identify neighbouring particles in each leaflet
 			selected_upper = tmp_lip_coords_up_centered[:,0]**2 + tmp_lip_coords_up_centered[:,1]**2 + tmp_lip_coords_up_centered[:,2]**2 < args.normal_d**2
 			selected_lower = tmp_lip_coords_lw_centered[:,0]**2 + tmp_lip_coords_lw_centered[:,1]**2 + tmp_lip_coords_lw_centered[:,2]**2 < args.normal_d**2
-			grid_statistics_upper[f_nb, selected_upper] += 1
-			grid_statistics_lower[f_nb, selected_lower] += 1
+			grid_statistics_upper_coverage[f_nb, selected_upper] += 1
+			grid_statistics_lower_coverage[f_nb, selected_lower] += 1
 			
 			#keep their coords only
 			tmp_lip_coords_up_centered_within = tmp_lip_coords_up_centered[selected_upper]
 			tmp_lip_coords_lw_centered_within = tmp_lip_coords_lw_centered[selected_lower]
-			if np.shape(tmp_lip_coords_up_centered_within)[0] == 0:
+			tmp_grid_statistics_upper_nb_beads.append(int(np.shape(tmp_lip_coords_up_centered_within)[0]))
+			tmp_grid_statistics_lower_nb_beads.append(int(np.shape(tmp_lip_coords_up_centered_within)[0]))
+			if tmp_grid_statistics_upper_nb_beads[-1] == 0:
 				print "\nWarning: no neighbouring particles found in the upper leaflet for current voxel. Check the normal and voxel options.\n"
 				continue
 			else:
 				cog_up = np.average(tmp_lip_coords_up_centered_within, axis = 0)
-			if np.shape(tmp_lip_coords_lw_centered_within)[0] == 0:
+			if tmp_grid_statistics_lower_nb_beads[-1] == 0:
 				print "\nWarning: no neighbouring particles found in the lower leaflet for current voxel. Check the normal and voxel options.\n"
 				continue
 			else:
@@ -1302,6 +1310,14 @@ def calculate_properties(box_dim, f_nb):								#DONE
 					density_charges[charge_g] += tmp_bins_nb 
 					density_charges["total"] += tmp_bins_nb
 
+		#calculate some grid coverage statistics
+		#---------------------------------------
+		if args.normal != 'z':
+			grid_statistics_upper_nb_beads[f_nb, 0] = np.average(tmp_grid_statistics_upper_nb_beads)
+			grid_statistics_upper_nb_beads[f_nb, 1] = np.std(tmp_grid_statistics_upper_nb_beads)
+			grid_statistics_lower_nb_beads[f_nb, 0] = np.average(tmp_grid_statistics_lower_nb_beads)
+			grid_statistics_lower_nb_beads[f_nb, 1] = np.std(tmp_grid_statistics_lower_nb_beads)
+
 	return
 def calculate_stats():													#DONE
 	
@@ -1321,33 +1337,48 @@ def calculate_stats():													#DONE
 	
 	#calculate grid coverage statistics
 	#----------------------------------
-	#average nb of times beads are sampled per frame
-	global avg_sampling_upper_avg, avg_sampling_upper_std
-	global avg_sampling_lower_avg, avg_sampling_lower_std
-	avg_sampling_upper_each_frame = np.average(grid_statistics_upper, axis = 1)
-	avg_sampling_lower_each_frame = np.average(grid_statistics_lower, axis = 1)
-	avg_sampling_upper_avg = np.average(avg_sampling_upper_each_frame)
-	avg_sampling_upper_std = np.std(avg_sampling_upper_each_frame)
-	avg_sampling_lower_avg = np.average(avg_sampling_lower_each_frame)
-	avg_sampling_lower_std = np.std(avg_sampling_lower_each_frame)
-	#average % of beads sampled 0 times per frame
-	global upper_pc_zeros_avg, upper_pc_zeros_std
-	global lower_pc_zeros_avg, lower_pc_zeros_std
-	upper_pc_zeros_each_frame = np.sum(grid_statistics_upper == 0, axis = 1) / float(leaflet_nb_beads_upper) * 100
-	lower_pc_zeros_each_frame = np.sum(grid_statistics_lower == 0, axis = 1) / float(leaflet_nb_beads_lower) * 100
-	upper_pc_zeros_avg = np.average(upper_pc_zeros_each_frame)
-	upper_pc_zeros_std = np.std(upper_pc_zeros_each_frame)
-	lower_pc_zeros_avg = np.average(lower_pc_zeros_each_frame)
-	lower_pc_zeros_std = np.std(lower_pc_zeros_each_frame)
-	#average % of beads sampled more than 1 time per frame
-	global upper_pc_mult_avg, upper_pc_mult_std
-	global lower_pc_mult_avg, lower_pc_mult_std
-	upper_pc_mult_each_frame = np.sum(grid_statistics_upper > 1, axis = 1) / float(leaflet_nb_beads_upper) * 100
-	lower_pc_mult_each_frame = np.sum(grid_statistics_lower > 1, axis = 1) / float(leaflet_nb_beads_lower) * 100
-	upper_pc_mult_avg = np.average(upper_pc_mult_each_frame)
-	upper_pc_mult_std = np.std(upper_pc_mult_each_frame)
-	lower_pc_mult_avg = np.average(lower_pc_mult_each_frame)
-	lower_pc_mult_std = np.std(lower_pc_mult_each_frame)
+	if args.normal != 'z':
+		#average nb of times beads are sampled per frame
+		global avg_sampling_upper_avg, avg_sampling_upper_std
+		global avg_sampling_lower_avg, avg_sampling_lower_std
+		avg_sampling_upper_each_frame = np.average(grid_statistics_upper_coverage, axis = 1)
+		avg_sampling_lower_each_frame = np.average(grid_statistics_lower_coverage, axis = 1)
+		avg_sampling_upper_avg = np.average(avg_sampling_upper_each_frame)
+		avg_sampling_upper_std = np.std(avg_sampling_upper_each_frame)
+		avg_sampling_lower_avg = np.average(avg_sampling_lower_each_frame)
+		avg_sampling_lower_std = np.std(avg_sampling_lower_each_frame)
+		#average % of beads sampled 0 times per frame
+		global upper_pc_zeros_avg, upper_pc_zeros_std
+		global lower_pc_zeros_avg, lower_pc_zeros_std
+		upper_pc_zeros_each_frame = np.sum(grid_statistics_upper_coverage == 0, axis = 1) / float(leaflet_nb_beads_upper) * 100
+		lower_pc_zeros_each_frame = np.sum(grid_statistics_lower_coverage == 0, axis = 1) / float(leaflet_nb_beads_lower) * 100
+		upper_pc_zeros_avg = np.average(upper_pc_zeros_each_frame)
+		upper_pc_zeros_std = np.std(upper_pc_zeros_each_frame)
+		lower_pc_zeros_avg = np.average(lower_pc_zeros_each_frame)
+		lower_pc_zeros_std = np.std(lower_pc_zeros_each_frame)
+		#average % of beads sampled more than 1 time per frame
+		global upper_pc_mult_avg, upper_pc_mult_std
+		global lower_pc_mult_avg, lower_pc_mult_std
+		upper_pc_mult_each_frame = np.sum(grid_statistics_upper_coverage > 1, axis = 1) / float(leaflet_nb_beads_upper) * 100
+		lower_pc_mult_each_frame = np.sum(grid_statistics_lower_coverage > 1, axis = 1) / float(leaflet_nb_beads_lower) * 100
+		upper_pc_mult_avg = np.average(upper_pc_mult_each_frame)
+		upper_pc_mult_std = np.std(upper_pc_mult_each_frame)
+		lower_pc_mult_avg = np.average(lower_pc_mult_each_frame)
+		lower_pc_mult_std = np.std(lower_pc_mult_each_frame)
+	
+		#average nb of upper beads found around each voxel center
+		global grid_statistics_upper_nb_beads_avg_avg, grid_statistics_upper_nb_beads_avg_std
+		global grid_statistics_upper_nb_beads_std_avg, grid_statistics_upper_nb_beads_std_std
+		global grid_statistics_lower_nb_beads_avg_avg, grid_statistics_lower_nb_beads_avg_std
+		global grid_statistics_lower_nb_beads_std_avg, grid_statistics_lower_nb_beads_std_std
+		grid_statistics_upper_nb_beads_avg_avg = np.average(grid_statistics_upper_nb_beads[:,0])
+		grid_statistics_upper_nb_beads_avg_std = np.std(grid_statistics_upper_nb_beads[:,0])
+		grid_statistics_upper_nb_beads_std_avg = np.average(grid_statistics_upper_nb_beads[:,1])
+		grid_statistics_upper_nb_beads_std_std = np.std(grid_statistics_upper_nb_beads[:,1])
+		grid_statistics_lower_nb_beads_avg_avg = np.average(grid_statistics_lower_nb_beads[:,0])
+		grid_statistics_lower_nb_beads_avg_std = np.std(grid_statistics_lower_nb_beads[:,0])
+		grid_statistics_lower_nb_beads_std_avg = np.average(grid_statistics_lower_nb_beads[:,1])
+		grid_statistics_lower_nb_beads_std_std = np.std(grid_statistics_lower_nb_beads[:,1])
 	
 	#calculate normalisation factor for each group for each size
 	#------------------------------------------------------------
@@ -1414,7 +1445,8 @@ def write_grid_statistics():
 	output_txt.write("- number beads in lower: " + str(leaflet_nb_beads_lower) + "\n")
 	output_txt.write("- voxel x,y,z dimensions: " + str(args.voxel_x) + ", " + str(args.voxel_y) + ", " + str(args.voxel_z) + "\n")
 	output_txt.write("- voxel min nb of points: " + str(args.voxel_nb) + "\n")
-	
+	output_txt.write("- search radius from voxel center to select beads used for local normal identification: " + str(args.normal_d) + " Angstrom\n")
+
 	#data
 	output_txt.write("\n")
 	output_txt.write("Average number of times each bead is sampled per frame:\n")
@@ -1428,6 +1460,10 @@ def write_grid_statistics():
 	output_txt.write("Average % of beads sampled more than once per frame:\n")
 	output_txt.write("-upper: " + str(round(upper_pc_mult_avg,2)) + " (" + str(round(upper_pc_mult_std,2)) + ")\n")
 	output_txt.write("-lower: " + str(round(lower_pc_mult_avg,2)) + " (" + str(round(lower_pc_mult_std,2)) + ")\n")
+	output_txt.write("\n")
+	output_txt.write("Average number of beads used for normal identification:\n")
+	output_txt.write("-upper: " + str(round(grid_statistics_upper_nb_beads_avg_avg,2)) + " (" + str(round(grid_statistics_upper_nb_beads_avg_std,2)) + ") +/-" + str(round(grid_statistics_upper_nb_beads_std_avg,2)) + " (" + str(round(grid_statistics_upper_nb_beads_std_std,2)) + ")\n")
+	output_txt.write("-lower: " + str(round(grid_statistics_lower_nb_beads_avg_avg,2)) + " (" + str(round(grid_statistics_lower_nb_beads_avg_std,2)) + ") +/-" + str(round(grid_statistics_lower_nb_beads_std_avg,2)) + " (" + str(round(grid_statistics_lower_nb_beads_std_std,2)) + ")\n")
 	output_txt.close()
 
 	return
@@ -1681,7 +1717,8 @@ calculate_stats()
 #=========================================================================================
 
 print "\nWriting outputs..."
-write_grid_statistics()
+if args.normal != 'z':
+	write_grid_statistics()
 density_write_particles()
 density_graph_particles()
 if args.chargesfilename != "no":
