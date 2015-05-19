@@ -71,16 +71,15 @@ The following python modules are needed :
     -> 'group,label,colour,MDAnalysis selection string'
  
    where 'group' is used to normalise the densities of several particles. By default
-   each particle type is normalised with respect to itself and the following densities
-   are used:
+   following densities definition are used:
     -> peptide,peptide,#262626,protein
-    -> CHOL,CHOL,#bdbdbd,resname CHOL and name ROH
-    -> POPC,POPC,#41ab5d,resname POPC and name PO4
-    -> POPE,POPE,#6a51a3,resname POPE and name PO4
-    -> POPS,POPS,#cc4c02,resname POPS and name PO4
+    -> lipids,CHOL,#bdbdbd,resname CHOL and name ROH
+    -> lipids,POPC,#41ab5d,resname POPC and name PO4
+    -> lipids,POPE,#6a51a3,resname POPE and name PO4
+    -> lipids,POPS,#cc4c02,resname POPS and name PO4
     -> water,water,#1d91c0,resname W
-    -> Na+,Na+,#7bccc4,name NA+
-    -> Cl-,Cl-,#fa9fb5,name CL-
+    -> ions,Na+,#7bccc4,name NA+
+    -> ions,Cl-,#fa9fb5,name CL-
 
 2. You can specify which particles to take into account for the calculation of the total
    charge density by supplying a file via the --charges option. Each line of this file
@@ -484,10 +483,10 @@ def set_particles():													#DONE
 		particles_def["sele_string"]["peptide"] = "protein"
 	
 		#lipids
-		particles_def["group"]["CHOL"] = "CHOL"
-		particles_def["group"]["POPC"] = "POPC"
-		particles_def["group"]["POPE"] = "POPE"
-		particles_def["group"]["POPS"] = "POPS"
+		particles_def["group"]["CHOL"] = "lipids"
+		particles_def["group"]["POPC"] = "lipids"
+		particles_def["group"]["POPE"] = "lipids"
+		particles_def["group"]["POPS"] = "lipids"
 		particles_def["colour"]["CHOL"] = "#bdbdbd"						#light grey
 		particles_def["colour"]["POPC"] = "#41ab5d"						#dark green
 		particles_def["colour"]["POPE"] = "#6a51a3"						#dark purple
@@ -503,8 +502,8 @@ def set_particles():													#DONE
 		particles_def["sele_string"]["water"] = "resname W"
 
 		#ions
-		particles_def["group"]["Na+"] = "Na+"
-		particles_def["group"]["Cl-"] = "CL-"
+		particles_def["group"]["Na+"] = "ions"
+		particles_def["group"]["Cl-"] = "ions"
 		particles_def["colour"]["Cl-"] = "#fa9fb5"						#light red
 		particles_def["colour"]["Na+"] = "#7bccc4"						#light blue
 		particles_def["sele_string"]["Na+"] = "name NA+"
