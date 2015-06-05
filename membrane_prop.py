@@ -12,7 +12,7 @@ import os.path
 #=========================================================================================
 # create parser
 #=========================================================================================
-version_nb = "0.0.1"
+version_nb = "0.0.2"
 parser = argparse.ArgumentParser(prog = 'membrane_prop', usage='', add_help = False, formatter_class = argparse.RawDescriptionHelpFormatter, description =\
 '''
 **********************************************
@@ -73,10 +73,10 @@ The following python modules are needed :
    where 'group' is used to normalise the densities of several particles. By default
    following densities definition are used:
     -> peptide,peptide,#262626,protein
-    -> lipids,CHOL,#bdbdbd,resname CHOL and name ROH
-    -> lipids,POPC,#41ab5d,resname POPC and name PO4
-    -> lipids,POPE,#6a51a3,resname POPE and name PO4
-    -> lipids,POPS,#cc4c02,resname POPS and name PO4
+    -> CHOL,CHOL,#bdbdbd,resname CHOL and name ROH
+    -> POPC,POPC,#41ab5d,resname POPC and name PO4
+    -> POPE,POPE,#6a51a3,resname POPE and name PO4
+    -> POPS,POPS,#cc4c02,resname POPS and name PO4
     -> water,water,#1d91c0,resname W
     -> ions,Na+,#7bccc4,name NA+
     -> ions,Cl-,#fa9fb5,name CL-
@@ -483,10 +483,10 @@ def set_particles():													#DONE
 		particles_def["sele_string"]["peptide"] = "protein"
 	
 		#lipids
-		particles_def["group"]["CHOL"] = "lipids"
-		particles_def["group"]["POPC"] = "lipids"
-		particles_def["group"]["POPE"] = "lipids"
-		particles_def["group"]["POPS"] = "lipids"
+		particles_def["group"]["CHOL"] = "CHOL"
+		particles_def["group"]["POPC"] = "POPC"
+		particles_def["group"]["POPE"] = "POPE"
+		particles_def["group"]["POPS"] = "POPS"
 		particles_def["colour"]["CHOL"] = "#bdbdbd"						#light grey
 		particles_def["colour"]["POPC"] = "#41ab5d"						#dark green
 		particles_def["colour"]["POPE"] = "#6a51a3"						#dark purple
