@@ -12,7 +12,7 @@ import os.path
 #=========================================================================================
 # create parser
 #=========================================================================================
-version_nb = "0.0.2"
+version_nb = "0.0.3"
 parser = argparse.ArgumentParser(prog = 'membrane_prop', usage='', add_help = False, formatter_class = argparse.RawDescriptionHelpFormatter, description =\
 '''
 **********************************************
@@ -1387,7 +1387,7 @@ def calculate_stats():													#DONE
 		tmp_normalisation[part_g] = 0
 		for part in particles_groups[part_g]:
 			try:
-				tmp_normalisation[part_g] += np.sum(density_particles_nb[part])
+				tmp_normalisation[part_g] += np.sum(density_particles_nb[part]) * args.slices_thick
 			except:
 				pass		
 	
