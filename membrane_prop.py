@@ -12,7 +12,7 @@ import os.path
 #=========================================================================================
 # create parser
 #=========================================================================================
-version_nb = "0.0.3"
+version_nb = "0.0.4"
 parser = argparse.ArgumentParser(prog = 'membrane_prop', usage='', add_help = False, formatter_class = argparse.RawDescriptionHelpFormatter, description =\
 '''
 **********************************************
@@ -1177,7 +1177,7 @@ def calculate_properties(box_dim, f_nb):								#DONE
 			tmp_lip_coords_up_centered_within = tmp_lip_coords_up_centered[selected_upper]
 			tmp_lip_coords_lw_centered_within = tmp_lip_coords_lw_centered[selected_lower]
 			tmp_grid_statistics_upper_nb_beads.append(int(np.shape(tmp_lip_coords_up_centered_within)[0]))
-			tmp_grid_statistics_lower_nb_beads.append(int(np.shape(tmp_lip_coords_up_centered_within)[0]))
+			tmp_grid_statistics_lower_nb_beads.append(int(np.shape(tmp_lip_coords_lw_centered_within)[0]))
 			if tmp_grid_statistics_upper_nb_beads[-1] == 0:
 				print "\nWarning: no neighbouring particles found in the upper leaflet for current voxel. Check the normal and voxel options.\n"
 				continue
