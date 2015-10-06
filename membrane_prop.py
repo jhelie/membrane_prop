@@ -17,7 +17,7 @@ parser = argparse.ArgumentParser(prog = 'membrane_prop', usage='', add_help = Fa
 '''
 **********************************************
 v''' + version_nb + '''
-author: Jean Helie (jean.helie@bioch.ox.ac.uk)
+author: Jean Helie (jean.helie@gmail.com)
 git: https://github.com/jhelie/membrane_prop
 **********************************************
 
