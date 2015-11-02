@@ -1015,7 +1015,7 @@ def struct_data():
 	global theta_deg_avg, theta_deg_std
 	theta_deg_avg = np.zeros(nb_frames_to_process)
 	theta_deg_std = np.zeros(nb_frames_to_process)
-	
+		
 	#particles
 	#---------
 	global density_particles_nb
@@ -1207,22 +1207,17 @@ def calculate_properties(box_dim, f_nb):								#DONE
 				tmp_lip_coords_centered_within = np.concatenate((coords_center_in_box(tmp_lip_coords_up_centered_within, cog_up, box_dim), coords_center_in_box(tmp_lip_coords_lw_centered_within, cog_lw, box_dim)))
 				svd_U, svd_D, svd_V = np.linalg.svd(tmp_lip_coords_centered_within)
 				norm_vec = svd_V[2].reshape((3,1))
-				#orientate the normal vector so that it goes from inside (lower) to outside (upper) (IMPORTANT: ensures correct + sign convention)
-				tmp_delta_cog = cog_up - cog_lw
-				tmp_delta_cog = tmp_delta_cog.reshape((3,1))
-				if np.dot(norm_vec[:,0],tmp_delta_cog[:,0]) < 0:
-					norm_vec *= -1
 
 			#identify rotation matrix
 			#NB: see http://math.stackexchange.com/questions/180418/calculate-rotation-matrix-to-align-vector-a-to-vector-b-in-3d
-			norm_ax = np.cross(loc_z_axis,norm_vec,axis=0)		# z axis ^ local normal = axis of rotation
-			norm_cos = np.dot(loc_z_axis[:,0],norm_vec[:,0])	#
+			norm_ax = np.cross(loc_z_axis,norm_vec,axis=0)				# z axis ^ local normal = axis of rotation
+			norm_cos = np.abs(np.dot(loc_z_axis[:,0],norm_vec[:,0]))	#assuming for now that the angle cannot go further than 90deg...
 			norm_sin = np.linalg.norm(norm_ax)
 			norm_ax_skew_sym = norm_vec*loc_z_axis.T - loc_z_axis*norm_vec.T
 			norm_rot = np.identity(3) - norm_ax_skew_sym + (1-norm_cos)/float(norm_sin**2)*np.dot(norm_ax_skew_sym,norm_ax_skew_sym)
 		
-			#get rotation angle (store absolute value, algebric one should be between -90 and +90 but theoretically can exceed that if the membrane bends on itself)
-			theta_tot_tmp.append(np.abs(np.arctan2(norm_sin, norm_cos) * 180 /float(np.pi)))
+			#get rotation angle
+			theta_tot_tmp.append(np.arctan2(norm_sin, norm_cos) * 180 /float(np.pi))
 		
 			#ROTATION
 			#rotate neighbouring bilayer in local cluster referential
@@ -1682,6 +1677,38 @@ def density_graph_charges():											#DONE
 
 	return
 
+def angle_write_extent():
+
+	#filename
+	filename_xvg = os.getcwd() + '/' + str(args.output_folder) + '/angle/membrane_prop_angle_extent.xvg'
+	output_xvg = open(filename_xvg, 'w')
+	
+	#general header
+	output_xvg.write("# [average local normal angle vs z axis - written by membrane_prop v" + str(version_nb) + "]\n")
+	output_xvg.write("# nb of frames processed = " + str(nb_frames_to_process) + "\n")
+	
+	#xvg metadata
+	output_xvg.write("@ title \"Evolution of average angle between local normal and z axis\"\n")
+	output_xvg.write("@ xaxis label \"time (ns)\"\n")
+	output_xvg.write("@ yaxis label \"average angle vs z axis (degrees)\"\n")
+	output_xvg.write("@ autoscale ONREAD xaxes\n")
+	output_xvg.write("@ TYPE XY\n")
+	output_xvg.write("@ view 0.15, 0.15, 0.95, 0.85\n")
+	output_xvg.write("@ legend on\n")
+	output_xvg.write("@ legend box on\n")
+	output_xvg.write("@ legend loctype view\n")
+	output_xvg.write("@ legend 0.98, 0.8\n")
+	output_xvg.write("@ legend length 2\n")
+	output_xvg.write("@ s0 legend \"angle (avg)\"\n")
+	output_xvg.write("@ s1 legend \"angle (std)\"\n")
+	
+	#data
+	for f_index in range(0,nb_frames_to_process):
+		results = str(frames_time[f_index]) + "	" + "{:.6e}".format(theta_deg_avg[f_index]) + "	" + "{:.6e}".format(theta_deg_std[f_index])
+		output_xvg.write(results + "\n")	
+	output_xvg.close()
+
+	return
 def angle_graph_extent():
 	
 	#filenames
@@ -1695,7 +1722,7 @@ def angle_graph_extent():
 	#plot data
 	ax = fig.add_subplot(111)
 	plt.plot(frames_time, theta_deg_avg, color = 'k', label = "avg", linewidth = 2)
-	plt.fill_between(frames_time, theta_deg_avg - theta_deg_std, theta_deg_avg + theta_deg_std, color = '#A4A4A4', edgecolor = '#A4A4A4', linewidth = 0, alpha = 0.2)
+	plt.fill_between(frames_time, theta_deg_avg - theta_deg_std, theta_deg_avg + theta_deg_std, color = '#A4A4A4', edgecolor = '#A4A4A4', linewidth = 0, alpha = 0.2)	
 	#plt.hlines(0, min(frames_time), max(frames_time))
 	fontP.set_size("small")
 	ax.legend(prop=fontP)
@@ -1703,7 +1730,7 @@ def angle_graph_extent():
 	plt.ylabel('average angle vs z axis (degrees)')
 	
 	#save figure
-	ax.set_xlim(0, nb_frames_to_process)
+	ax.set_xlim(0, max(frames_time))
 	ax.set_ylim(0, 90)
 	ax.spines['top'].set_visible(False)
 	ax.spines['right'].set_visible(False)
@@ -1781,6 +1808,7 @@ if args.normal != 'z':
 	write_grid_statistics()
 density_write_particles()
 density_graph_particles()
+angle_write_extent()
 angle_graph_extent()
 if args.chargesfilename != "no":
 	density_write_charges()
