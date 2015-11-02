@@ -12,7 +12,7 @@ import os.path
 #=========================================================================================
 # create parser
 #=========================================================================================
-version_nb = "0.0.4"
+version_nb = "0.0.4a"
 parser = argparse.ArgumentParser(prog = 'membrane_prop', usage='', add_help = False, formatter_class = argparse.RawDescriptionHelpFormatter, description =\
 '''
 **********************************************
@@ -405,6 +405,7 @@ if os.path.isdir(args.output_folder):
 else:
 	#create folders
 	os.mkdir(args.output_folder)	
+	os.mkdir(args.output_folder + "/angle")
 	os.mkdir(args.output_folder + "/density")
 	if args.chargesfilename != "no":
 		os.mkdir(args.output_folder + "/charge")
@@ -1009,6 +1010,12 @@ def struct_data():
 	grid_statistics_upper_nb_beads = np.zeros((nb_frames_to_process, 2))
 	grid_statistics_lower_nb_beads = np.zeros((nb_frames_to_process, 2))
 	
+	#angle
+	#-----
+	global theta_deg_avg, theta_deg_std
+	theta_deg_avg = np.zeros(nb_frames_to_process)
+	theta_deg_std = np.zeros(nb_frames_to_process)
+	
 	#particles
 	#---------
 	global density_particles_nb
@@ -1098,6 +1105,7 @@ def calculate_properties(box_dim, f_nb):								#DONE
 	global nb_voxel_processed
 	global grid_statistics_upper_coverage, grid_statistics_lower_coverage
 	global grid_statistics_upper_nb_beads, grid_statistics_lower_nb_beads
+	theta_tot_tmp = []
 	loc_z_axis = np.array([0,0,1])
 	loc_z_axis = loc_z_axis.reshape((3,1))
 	tmp_grid_statistics_upper_nb_beads = []
@@ -1206,11 +1214,15 @@ def calculate_properties(box_dim, f_nb):								#DONE
 					norm_vec *= -1
 
 			#identify rotation matrix
-			norm_ax = np.cross(loc_z_axis,norm_vec,axis=0)
-			norm_cos = np.dot(loc_z_axis[:,0],norm_vec[:,0])
+			#NB: see http://math.stackexchange.com/questions/180418/calculate-rotation-matrix-to-align-vector-a-to-vector-b-in-3d
+			norm_ax = np.cross(loc_z_axis,norm_vec,axis=0)		# z axis ^ local normal = axis of rotation
+			norm_cos = np.dot(loc_z_axis[:,0],norm_vec[:,0])	#
 			norm_sin = np.linalg.norm(norm_ax)
 			norm_ax_skew_sym = norm_vec*loc_z_axis.T - loc_z_axis*norm_vec.T
 			norm_rot = np.identity(3) - norm_ax_skew_sym + (1-norm_cos)/float(norm_sin**2)*np.dot(norm_ax_skew_sym,norm_ax_skew_sym)
+		
+			#get rotation angle (store absolute value, algebric one should be between -90 and +90 but theoretically can exceed that if the membrane bends on itself)
+			theta_tot_tmp.append(np.abs(np.arctan2(norm_sin, norm_cos) * 180 /float(np.pi)))
 		
 			#ROTATION
 			#rotate neighbouring bilayer in local cluster referential
@@ -1317,6 +1329,15 @@ def calculate_properties(box_dim, f_nb):								#DONE
 			grid_statistics_upper_nb_beads[f_nb, 1] = np.std(tmp_grid_statistics_upper_nb_beads)
 			grid_statistics_lower_nb_beads[f_nb, 0] = np.average(tmp_grid_statistics_lower_nb_beads)
 			grid_statistics_lower_nb_beads[f_nb, 1] = np.std(tmp_grid_statistics_lower_nb_beads)
+
+	#calculate angle average
+	#=======================
+	if len(theta_tot_tmp) != 0:
+		theta_deg_avg[f_nb] = np.average(theta_tot_tmp)
+		theta_deg_std[f_nb] = np.std(theta_tot_tmp)
+	else:
+		theta_deg_avg[f_nb] = np.nan
+		theta_deg_std[f_nb] = np.nan
 
 	return
 def calculate_stats():													#DONE
@@ -1661,6 +1682,45 @@ def density_graph_charges():											#DONE
 
 	return
 
+def angle_graph_extent():
+	
+	#filenames
+	filename_png = os.getcwd() + '/' + str(args.output_folder) + '/angle/membrane_prop_angle_extent.png'
+	filename_svg = os.getcwd() + '/' + str(args.output_folder) + '/angle/membrane_prop_angle_extent.svg'
+
+	#create figure
+	fig = plt.figure(figsize=(8, 6.2))
+	fig.suptitle("Evolution of average angle between local normal and z axis")
+
+	#plot data
+	ax = fig.add_subplot(111)
+	plt.plot(frames_time, theta_deg_avg, color = 'k', label = "avg", linewidth = 2)
+	plt.fill_between(frames_time, theta_deg_avg - theta_deg_std, theta_deg_avg + theta_deg_std, color = '#A4A4A4', edgecolor = '#A4A4A4', linewidth = 0, alpha = 0.2)
+	#plt.hlines(0, min(frames_time), max(frames_time))
+	fontP.set_size("small")
+	ax.legend(prop=fontP)
+	plt.xlabel('time (ns)')
+	plt.ylabel('average angle vs z axis (degrees)')
+	
+	#save figure
+	ax.set_xlim(0, nb_frames_to_process)
+	ax.set_ylim(0, 90)
+	ax.spines['top'].set_visible(False)
+	ax.spines['right'].set_visible(False)
+	ax.xaxis.set_ticks_position('bottom')
+	ax.yaxis.set_ticks_position('left')
+	ax.xaxis.set_major_locator(MaxNLocator(nbins=10))
+	ax.yaxis.set_major_locator(MaxNLocator(nbins=7))
+	ax.xaxis.labelpad = 20
+	ax.yaxis.labelpad = 20
+	plt.setp(ax.xaxis.get_majorticklabels(), fontsize = "small")
+	plt.setp(ax.yaxis.get_majorticklabels(), fontsize = "small")
+	plt.subplots_adjust(top = 0.9, bottom = 0.15, left = 0.15, right = 0.85)
+	fig.savefig(filename_png)
+	fig.savefig(filename_svg)
+	plt.close()
+	return
+
 ##########################################################################################
 # ALGORITHM
 ##########################################################################################
@@ -1721,6 +1781,7 @@ if args.normal != 'z':
 	write_grid_statistics()
 density_write_particles()
 density_graph_particles()
+angle_graph_extent()
 if args.chargesfilename != "no":
 	density_write_charges()
 	density_graph_charges()
