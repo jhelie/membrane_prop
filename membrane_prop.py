@@ -1208,17 +1208,23 @@ def calculate_properties(box_dim, f_nb):								#DONE
 				svd_U, svd_D, svd_V = np.linalg.svd(tmp_lip_coords_centered_within)
 				norm_vec = svd_V[2].reshape((3,1))
 
+			#orientate the normal vector so that from inner leaflet towards outer one
+			tmp_cog_delta = cog_up - cog_lw
+			tmp_cog_delta = tmp_cog_delta.reshape((3,1))
+			if np.dot(tmp_cog_delta[:,0],norm_vec[:,0]) < 0:
+				norm_vec *= -1
+
 			#identify rotation matrix
 			#NB: see http://math.stackexchange.com/questions/180418/calculate-rotation-matrix-to-align-vector-a-to-vector-b-in-3d
 			norm_ax = np.cross(loc_z_axis,norm_vec,axis=0)				# z axis ^ local normal = axis of rotation
-			norm_cos = np.abs(np.dot(loc_z_axis[:,0],norm_vec[:,0]))	#assuming for now that the angle cannot go further than 90deg...
-			norm_sin = np.linalg.norm(norm_ax)
+			norm_cos = np.dot(loc_z_axis[:,0],norm_vec[:,0])			#if the cos is <0 the angle will be >90deg, this is technically possible (e.g. buckling) but should only happen in extreme deformation cases
+			norm_sin = np.linalg.norm(norm_ax)							#one way to get around this is to take the abs of the cos (i.e. of np.dot) but that means we assume that the angle has to be <90 deg
 			norm_ax_skew_sym = norm_vec*loc_z_axis.T - loc_z_axis*norm_vec.T
 			norm_rot = np.identity(3) - norm_ax_skew_sym + (1-norm_cos)/float(norm_sin**2)*np.dot(norm_ax_skew_sym,norm_ax_skew_sym)
 		
 			#get rotation angle
 			theta_tot_tmp.append(np.arctan2(norm_sin, norm_cos) * 180 /float(np.pi))
-		
+				
 			#ROTATION
 			#rotate neighbouring bilayer in local cluster referential
 			tmp_lip_coords_up_centered_within_rotated = np.dot(norm_rot, tmp_lip_coords_up_centered_within.T).T
