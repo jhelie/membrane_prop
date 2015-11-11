@@ -1012,9 +1012,12 @@ def struct_data():
 	
 	#angle
 	#-----
+	global theta_deg_avg, theta_deg_std
 	global norm_dnxdx_avg, norm_dnxdx_std
 	global norm_dnydy_avg, norm_dnydy_std
 	global norm_dnzdz_avg, norm_dnzdz_std
+	theta_deg_avg = np.zeros(nb_frames_to_process)
+	theta_deg_std = np.zeros(nb_frames_to_process)
 	norm_dnxdx_avg = np.zeros(nb_frames_to_process)
 	norm_dnxdx_std = np.zeros(nb_frames_to_process)
 	norm_dnydy_avg = np.zeros(nb_frames_to_process)
@@ -1989,7 +1992,7 @@ def angle_graph_derivative():
 	#------------
 	ax3 = fig.add_subplot(313)
 	plt.plot(frames_time, norm_dnzdz_avg, color = 'k', label = "avg", linewidth = 2)
-	plt.fill_between(frames_time, norm_dnzdz_avg - norm_dnydz_avg, norm_dnzdz_avg + norm_dnzdz_std, color = '#A4A4A4', edgecolor = '#A4A4A4', linewidth = 0, alpha = 0.2)
+	plt.fill_between(frames_time, norm_dnzdz_avg - norm_dnzdz_avg, norm_dnzdz_avg + norm_dnzdz_std, color = '#A4A4A4', edgecolor = '#A4A4A4', linewidth = 0, alpha = 0.2)
 	#plt.hlines(0, min(frames_time), max(frames_time))
 	fontP.set_size("small")
 	ax3.legend(prop=fontP)
