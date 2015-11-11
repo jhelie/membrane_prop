@@ -1118,6 +1118,7 @@ def calculate_properties(box_dim, f_nb):								#DONE
 	tmp_grid_statistics_lower_nb_beads = []
 	tmp_pos = np.zeros(((box_dim[0] // args.voxel_x) + 1 , (box_dim[1] // args.voxel_y) + 1, (box_dim[2] // args.voxel_z) + 1, 3))
 	tmp_norm = np.zeros(((box_dim[0] // args.voxel_x) + 1 , (box_dim[1] // args.voxel_y) + 1, (box_dim[2] // args.voxel_z) + 1, 3))
+	tmp_norm_d = np.zeros(((box_dim[0] // args.voxel_x) + 1 , (box_dim[1] // args.voxel_y) + 1, (box_dim[2] // args.voxel_z) + 1, 3))
 	
 	#create coordinate array of "middle" leaflet
 	#===========================================
@@ -1239,7 +1240,7 @@ def calculate_properties(box_dim, f_nb):								#DONE
 				print "Warning: voxel sampled twice in the same frame"
 			else:
 				tmp_pos[(tmp_index)] = tmp_voxel_center
-				tmp_norm[(tmp_index)] = norm_vec[:]
+				tmp_norm[(tmp_index)] = norm_vec[:,0]
 								
 			#ROTATION
 			#rotate neighbouring bilayer in local cluster referential
@@ -1384,8 +1385,6 @@ def calculate_properties(box_dim, f_nb):								#DONE
 	tmp_delta_pos_xz = np.zeros(grid_shape)
 	tmp_delta_pos_yz = np.zeros(grid_shape)
 	tmp_delta_pos_xyz = np.zeros(grid_shape)	
-	#derivatives
-	tmp_norm_d = np.zeros(grid_shape)
 
 	#fill shifted grids: local normal
 	#--------------------------------
@@ -1450,13 +1449,13 @@ def calculate_properties(box_dim, f_nb):								#DONE
 	#find out which voxels are populated
 	#-----------------------------------
 	tmp_pop_vox = np.any(tmp_norm[:,:,:] != 0, 3)
-	tmp_pop_x = np.multiply(tmp_pop_vox, np.any(tmp_norm_x[:,:,:] != 0, 3))
-	tmp_pop_y = np.multiply(tmp_pop_vox, np.any(tmp_norm_y[:,:,:] != 0, 3))
-	tmp_pop_z = np.multiply(tmp_pop_vox, np.any(tmp_norm_z[:,:,:] != 0, 3))
-	tmp_pop_xy = np.multiply(tmp_pop_vox, np.any(tmp_norm_xy[:,:,:] != 0, 3))
-	tmp_pop_xz = np.multiply(tmp_pop_vox, np.any(tmp_norm_xz[:,:,:] != 0, 3))	
-	tmp_pop_yz = np.multiply(tmp_pop_vox, np.any(tmp_norm_yz[:,:,:] != 0, 3))
-	tmp_pop_xyz = np.multiply(tmp_pop_vox, np.any(tmp_norm_xyz[:,:,:] != 0, 3))
+	tmp_pop_x = np.multiply(tmp_pop_vox, np.any(tmp_shifted_norm_x[:,:,:] != 0, 3))
+	tmp_pop_y = np.multiply(tmp_pop_vox, np.any(tmp_shifted_norm_y[:,:,:] != 0, 3))
+	tmp_pop_z = np.multiply(tmp_pop_vox, np.any(tmp_shifted_norm_z[:,:,:] != 0, 3))
+	tmp_pop_xy = np.multiply(tmp_pop_vox, np.any(tmp_shifted_norm_xy[:,:,:] != 0, 3))
+	tmp_pop_xz = np.multiply(tmp_pop_vox, np.any(tmp_shifted_norm_xz[:,:,:] != 0, 3))	
+	tmp_pop_yz = np.multiply(tmp_pop_vox, np.any(tmp_shifted_norm_yz[:,:,:] != 0, 3))
+	tmp_pop_xyz = np.multiply(tmp_pop_vox, np.any(tmp_shifted_norm_xyz[:,:,:] != 0, 3))
 	
 	#calculate derivatives
 	#---------------------
@@ -1467,28 +1466,43 @@ def calculate_properties(box_dim, f_nb):								#DONE
 	#----------------------------------------------------------------------------------------------
 	
 	#d(nx)/dx ([0] = nx and x, xy, xz and xyz contribute)
-	tmp_norm_d[tmp_pop_x][0] += tmp_delta_norm_x[tmp_pop_x][0] / tmp_delta_pos_x[tmp_pop_x][0]
-	tmp_norm_d[tmp_pop_xy][0] += tmp_delta_norm_xy[tmp_pop_xy][0] / tmp_delta_pos_xy[tmp_pop_xy][0]
-	tmp_norm_d[tmp_pop_xz][0] += tmp_delta_norm_xz[tmp_pop_xz][0] / tmp_delta_pos_xz[tmp_pop_xz][0]
-	tmp_norm_d[tmp_pop_xyz][0] += tmp_delta_norm_xyz[tmp_pop_xyz][0] / tmp_delta_pos_xyz[tmp_pop_xyz][0]
+	if np.count_nonzero(tmp_pop_x) > 0:
+		tmp_norm_d[tmp_pop_x][0] += tmp_delta_norm_x[tmp_pop_x][0] / tmp_delta_pos_x[tmp_pop_x][0]
+	if np.count_nonzero(tmp_pop_xy) > 0:
+		tmp_norm_d[tmp_pop_xy][0] += tmp_delta_norm_xy[tmp_pop_xy][0] / tmp_delta_pos_xy[tmp_pop_xy][0]
+	if np.count_nonzero(tmp_pop_xz) > 0:
+		tmp_norm_d[tmp_pop_xz][0] += tmp_delta_norm_xz[tmp_pop_xz][0] / tmp_delta_pos_xz[tmp_pop_xz][0]
+	if np.count_nonzero(tmp_pop_xyz) > 0:
+		tmp_norm_d[tmp_pop_xyz][0] += tmp_delta_norm_xyz[tmp_pop_xyz][0] / tmp_delta_pos_xyz[tmp_pop_xyz][0]
 	#d(ny)/dy ([1] = ny and y, xy, yz and xyz contribute)
-	tmp_norm_d[tmp_pop_y][1] += tmp_delta_norm_y[tmp_pop_y][1] / tmp_delta_pos_y[tmp_pop_y][1]
-	tmp_norm_d[tmp_pop_xy][1] += tmp_delta_norm_xy[tmp_pop_xy][1] / tmp_delta_pos_xy[tmp_pop_xy][1]
-	tmp_norm_d[tmp_pop_yz][1] += tmp_delta_norm_yz[tmp_pop_yz][1] / tmp_delta_pos_yz[tmp_pop_yz][1]
-	tmp_norm_d[tmp_pop_xyz][1] += tmp_delta_norm_xyz[tmp_pop_xyz][1] / tmp_delta_pos_xyz[tmp_pop_xyz][1]
+	if np.count_nonzero(tmp_pop_y) > 0:
+		tmp_norm_d[tmp_pop_y][1] += tmp_delta_norm_y[tmp_pop_y][1] / tmp_delta_pos_y[tmp_pop_y][1]
+	if np.count_nonzero(tmp_pop_xy) > 0:
+		tmp_norm_d[tmp_pop_xy][1] += tmp_delta_norm_xy[tmp_pop_xy][1] / tmp_delta_pos_xy[tmp_pop_xy][1]
+	if np.count_nonzero(tmp_pop_yz) > 0:
+		tmp_norm_d[tmp_pop_yz][1] += tmp_delta_norm_yz[tmp_pop_yz][1] / tmp_delta_pos_yz[tmp_pop_yz][1]
+	if np.count_nonzero(tmp_pop_xyz) > 0:
+		tmp_norm_d[tmp_pop_xyz][1] += tmp_delta_norm_xyz[tmp_pop_xyz][1] / tmp_delta_pos_xyz[tmp_pop_xyz][1]
 	#d(nz)/dz ([2] = nz and z, xz, yz and xyz contribute)
-	tmp_norm_d[tmp_pop_z][2] += tmp_delta_norm_z[tmp_pop_z][2] / tmp_delta_pos_z[tmp_pop_z][2]
-	tmp_norm_d[tmp_pop_xz][2] += tmp_delta_norm_xz[tmp_pop_xz][2] / tmp_delta_pos_xz[tmp_pop_xz][2]
-	tmp_norm_d[tmp_pop_yz][2] += tmp_delta_norm_yz[tmp_pop_yz][2] / tmp_delta_pos_yz[tmp_pop_yz][2]
-	tmp_norm_d[tmp_pop_xyz][2] += tmp_delta_norm_xyz[tmp_pop_xyz][2] / tmp_delta_pos_xyz[tmp_pop_xyz][2]
+	if np.count_nonzero(tmp_pop_z) > 0:
+		tmp_norm_d[tmp_pop_z][2] += tmp_delta_norm_z[tmp_pop_z][2] / tmp_delta_pos_z[tmp_pop_z][2]
+	if np.count_nonzero(tmp_pop_xz) > 0:
+		tmp_norm_d[tmp_pop_xz][2] += tmp_delta_norm_xz[tmp_pop_xz][2] / tmp_delta_pos_xz[tmp_pop_xz][2]
+	if np.count_nonzero(tmp_pop_yz) > 0:
+		tmp_norm_d[tmp_pop_yz][2] += tmp_delta_norm_yz[tmp_pop_yz][2] / tmp_delta_pos_yz[tmp_pop_yz][2]
+	if np.count_nonzero(tmp_pop_xyz) > 0:
+		tmp_norm_d[tmp_pop_xyz][2] += tmp_delta_norm_xyz[tmp_pop_xyz][2] / tmp_delta_pos_xyz[tmp_pop_xyz][2]
 
 	#calculate avg derivatives
-	norm_dnxdx_avg[f_nb] = np.average(tmp_norm_d[tmp_pop_x + tmp_pop_xy + tmp_pop_xz + tmp_pop_xyz][0])
-	norm_dnydy_avg[f_nb] = np.average(tmp_norm_d[tmp_pop_y + tmp_pop_xy + tmp_pop_yz + tmp_pop_xyz][1])
-	norm_dnzdz_avg[f_nb] = np.average(tmp_norm_d[tmp_pop_z + tmp_pop_yz + tmp_pop_xz + tmp_pop_xyz][2])
-	norm_dnxdx_std[f_nb] = np.std(tmp_norm_d[tmp_pop_x + tmp_pop_xy + tmp_pop_xz + tmp_pop_xyz][0])
-	norm_dnydy_std[f_nb] = np.std(tmp_norm_d[tmp_pop_y + tmp_pop_xy + tmp_pop_yz + tmp_pop_xyz][1])
-	norm_dnzdz_std[f_nb] = np.std(tmp_norm_d[tmp_pop_z + tmp_pop_yz + tmp_pop_xz + tmp_pop_xyz][2])
+	if np.count_nonzero(tmp_pop_x + tmp_pop_xy + tmp_pop_xz + tmp_pop_xyz) > 0:
+		norm_dnxdx_avg[f_nb] = np.average(tmp_norm_d[tmp_pop_x + tmp_pop_xy + tmp_pop_xz + tmp_pop_xyz][0])
+		norm_dnxdx_std[f_nb] = np.std(tmp_norm_d[tmp_pop_x + tmp_pop_xy + tmp_pop_xz + tmp_pop_xyz][0])
+	if np.count_nonzero(tmp_pop_y + tmp_pop_xy + tmp_pop_yz + tmp_pop_xyz) > 0:
+		norm_dnydy_avg[f_nb] = np.average(tmp_norm_d[tmp_pop_y + tmp_pop_xy + tmp_pop_yz + tmp_pop_xyz][1])
+		norm_dnydy_std[f_nb] = np.std(tmp_norm_d[tmp_pop_y + tmp_pop_xy + tmp_pop_yz + tmp_pop_xyz][1])
+	if np.count_nonzero(tmp_pop_z + tmp_pop_xz + tmp_pop_yz + tmp_pop_xyz) > 0:
+		norm_dnzdz_avg[f_nb] = np.average(tmp_norm_d[tmp_pop_z + tmp_pop_yz + tmp_pop_xz + tmp_pop_xyz][2])
+		norm_dnzdz_std[f_nb] = np.std(tmp_norm_d[tmp_pop_z + tmp_pop_yz + tmp_pop_xz + tmp_pop_xyz][2])
 
 	#calculate angle average
 	#=======================
