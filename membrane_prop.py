@@ -1235,12 +1235,12 @@ def calculate_properties(box_dim, f_nb):								#DONE
 			
 			#store it in the voxel grid
 			tmp_index = (tmp_voxel_center[0] // args.voxel_x, tmp_voxel_center[1] // args.voxel_y, tmp_voxel_center[2] // args.voxel_z)
-			if tmp_norm[(tmp_index)] == [0, 0, 0]:
-				tmp_pos[(tmp_index)] = tmp_voxel_center
-				tmp_norm[(tmp_index)] = norm_vec
-			else:
+			if np.any(tmp_norm[(tmp_index)]):
 				print "Warning: voxel sampled twice in the same frame"
-				
+			else:
+				tmp_pos[(tmp_index)] = tmp_voxel_center
+				tmp_norm[(tmp_index)] = norm_vec[:]
+								
 			#ROTATION
 			#rotate neighbouring bilayer in local cluster referential
 			tmp_lip_coords_up_centered_within_rotated = np.dot(norm_rot, tmp_lip_coords_up_centered_within.T).T
