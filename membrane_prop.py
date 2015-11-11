@@ -1121,7 +1121,7 @@ def calculate_properties(box_dim, f_nb):								#DONE
 	tmp_grid_statistics_lower_nb_beads = []
 	tmp_pos = np.zeros(((box_dim[0] // args.voxel_x) + 1 , (box_dim[1] // args.voxel_y) + 1, (box_dim[2] // args.voxel_z) + 1, 3))
 	tmp_norm = np.zeros(((box_dim[0] // args.voxel_x) + 1 , (box_dim[1] // args.voxel_y) + 1, (box_dim[2] // args.voxel_z) + 1, 3))
-	tmp_norm_d = np.zeros(((box_dim[0] // args.voxel_x) + 1 , (box_dim[1] // args.voxel_y) + 1, (box_dim[2] // args.voxel_z) + 1, 3))
+	tmp_norm_d = np.zeros(((box_dim[0] // args.voxel_x) + 1 , (box_dim[1] // args.voxel_y) + 1, (box_dim[2] // args.voxel_z) + 1, 3), float)
 	
 	#create coordinate array of "middle" leaflet
 	#===========================================
@@ -1470,42 +1470,42 @@ def calculate_properties(box_dim, f_nb):								#DONE
 	
 	#d(nx)/dx ([0] = nx and x, xy, xz and xyz contribute)
 	if np.count_nonzero(tmp_pop_x) > 0:
-		tmp_norm_d[tmp_pop_x][0] += tmp_delta_norm_x[tmp_pop_x][0] / tmp_delta_pos_x[tmp_pop_x][0]
+		tmp_norm_d[tmp_pop_x, 0] += tmp_delta_norm_x[tmp_pop_x, 0] / tmp_delta_pos_x[tmp_pop_x, 0]
 	if np.count_nonzero(tmp_pop_xy) > 0:
-		tmp_norm_d[tmp_pop_xy][0] += tmp_delta_norm_xy[tmp_pop_xy][0] / tmp_delta_pos_xy[tmp_pop_xy][0]
+		tmp_norm_d[tmp_pop_xy, 0] += tmp_delta_norm_xy[tmp_pop_xy, 0] / tmp_delta_pos_xy[tmp_pop_xy, 0]
 	if np.count_nonzero(tmp_pop_xz) > 0:
-		tmp_norm_d[tmp_pop_xz][0] += tmp_delta_norm_xz[tmp_pop_xz][0] / tmp_delta_pos_xz[tmp_pop_xz][0]
+		tmp_norm_d[tmp_pop_xz, 0] += tmp_delta_norm_xz[tmp_pop_xz, 0] / tmp_delta_pos_xz[tmp_pop_xz, 0]
 	if np.count_nonzero(tmp_pop_xyz) > 0:
-		tmp_norm_d[tmp_pop_xyz][0] += tmp_delta_norm_xyz[tmp_pop_xyz][0] / tmp_delta_pos_xyz[tmp_pop_xyz][0]
+		tmp_norm_d[tmp_pop_xyz, 0] += tmp_delta_norm_xyz[tmp_pop_xyz, 0] / tmp_delta_pos_xyz[tmp_pop_xyz, 0]
 	#d(ny)/dy ([1] = ny and y, xy, yz and xyz contribute)
 	if np.count_nonzero(tmp_pop_y) > 0:
-		tmp_norm_d[tmp_pop_y][1] += tmp_delta_norm_y[tmp_pop_y][1] / tmp_delta_pos_y[tmp_pop_y][1]
+		tmp_norm_d[tmp_pop_y, 1] += tmp_delta_norm_y[tmp_pop_y, 1] / tmp_delta_pos_y[tmp_pop_y, 1]
 	if np.count_nonzero(tmp_pop_xy) > 0:
-		tmp_norm_d[tmp_pop_xy][1] += tmp_delta_norm_xy[tmp_pop_xy][1] / tmp_delta_pos_xy[tmp_pop_xy][1]
+		tmp_norm_d[tmp_pop_xy, 1] += tmp_delta_norm_xy[tmp_pop_xy, 1] / tmp_delta_pos_xy[tmp_pop_xy, 1]
 	if np.count_nonzero(tmp_pop_yz) > 0:
-		tmp_norm_d[tmp_pop_yz][1] += tmp_delta_norm_yz[tmp_pop_yz][1] / tmp_delta_pos_yz[tmp_pop_yz][1]
+		tmp_norm_d[tmp_pop_yz, 1] += tmp_delta_norm_yz[tmp_pop_yz, 1] / tmp_delta_pos_yz[tmp_pop_yz, 1]
 	if np.count_nonzero(tmp_pop_xyz) > 0:
-		tmp_norm_d[tmp_pop_xyz][1] += tmp_delta_norm_xyz[tmp_pop_xyz][1] / tmp_delta_pos_xyz[tmp_pop_xyz][1]
+		tmp_norm_d[tmp_pop_xyz, 1] += tmp_delta_norm_xyz[tmp_pop_xyz, 1] / tmp_delta_pos_xyz[tmp_pop_xyz, 1]
 	#d(nz)/dz ([2] = nz and z, xz, yz and xyz contribute)
 	if np.count_nonzero(tmp_pop_z) > 0:
-		tmp_norm_d[tmp_pop_z][2] += tmp_delta_norm_z[tmp_pop_z][2] / tmp_delta_pos_z[tmp_pop_z][2]
+		tmp_norm_d[tmp_pop_z, 2] += tmp_delta_norm_z[tmp_pop_z, 2] / tmp_delta_pos_z[tmp_pop_z, 2]
 	if np.count_nonzero(tmp_pop_xz) > 0:
-		tmp_norm_d[tmp_pop_xz][2] += tmp_delta_norm_xz[tmp_pop_xz][2] / tmp_delta_pos_xz[tmp_pop_xz][2]
+		tmp_norm_d[tmp_pop_xz, 2] += tmp_delta_norm_xz[tmp_pop_xz, 2] / tmp_delta_pos_xz[tmp_pop_xz, 2]
 	if np.count_nonzero(tmp_pop_yz) > 0:
-		tmp_norm_d[tmp_pop_yz][2] += tmp_delta_norm_yz[tmp_pop_yz][2] / tmp_delta_pos_yz[tmp_pop_yz][2]
+		tmp_norm_d[tmp_pop_yz, 2] += tmp_delta_norm_yz[tmp_pop_yz, 2] / tmp_delta_pos_yz[tmp_pop_yz, 2]
 	if np.count_nonzero(tmp_pop_xyz) > 0:
-		tmp_norm_d[tmp_pop_xyz][2] += tmp_delta_norm_xyz[tmp_pop_xyz][2] / tmp_delta_pos_xyz[tmp_pop_xyz][2]
+		tmp_norm_d[tmp_pop_xyz, 2] += tmp_delta_norm_xyz[tmp_pop_xyz, 2] / tmp_delta_pos_xyz[tmp_pop_xyz, 2]
 
 	#calculate avg derivatives
 	if np.count_nonzero(tmp_pop_x + tmp_pop_xy + tmp_pop_xz + tmp_pop_xyz) > 0:
-		norm_dnxdx_avg[f_nb] = np.average(tmp_norm_d[tmp_pop_x + tmp_pop_xy + tmp_pop_xz + tmp_pop_xyz][0])
-		norm_dnxdx_std[f_nb] = np.std(tmp_norm_d[tmp_pop_x + tmp_pop_xy + tmp_pop_xz + tmp_pop_xyz][0])
+		norm_dnxdx_avg[f_nb] = np.average(tmp_norm_d[tmp_pop_x + tmp_pop_xy + tmp_pop_xz + tmp_pop_xyz, 0])
+		norm_dnxdx_std[f_nb] = np.std(tmp_norm_d[tmp_pop_x + tmp_pop_xy + tmp_pop_xz + tmp_pop_xyz, 0])
 	if np.count_nonzero(tmp_pop_y + tmp_pop_xy + tmp_pop_yz + tmp_pop_xyz) > 0:
-		norm_dnydy_avg[f_nb] = np.average(tmp_norm_d[tmp_pop_y + tmp_pop_xy + tmp_pop_yz + tmp_pop_xyz][1])
-		norm_dnydy_std[f_nb] = np.std(tmp_norm_d[tmp_pop_y + tmp_pop_xy + tmp_pop_yz + tmp_pop_xyz][1])
+		norm_dnydy_avg[f_nb] = np.average(tmp_norm_d[tmp_pop_y + tmp_pop_xy + tmp_pop_yz + tmp_pop_xyz, 1])
+		norm_dnydy_std[f_nb] = np.std(tmp_norm_d[tmp_pop_y + tmp_pop_xy + tmp_pop_yz + tmp_pop_xyz, 1])
 	if np.count_nonzero(tmp_pop_z + tmp_pop_xz + tmp_pop_yz + tmp_pop_xyz) > 0:
-		norm_dnzdz_avg[f_nb] = np.average(tmp_norm_d[tmp_pop_z + tmp_pop_yz + tmp_pop_xz + tmp_pop_xyz][2])
-		norm_dnzdz_std[f_nb] = np.std(tmp_norm_d[tmp_pop_z + tmp_pop_yz + tmp_pop_xz + tmp_pop_xyz][2])
+		norm_dnzdz_avg[f_nb] = np.average(tmp_norm_d[tmp_pop_z + tmp_pop_yz + tmp_pop_xz + tmp_pop_xyz, 2])
+		norm_dnzdz_std[f_nb] = np.std(tmp_norm_d[tmp_pop_z + tmp_pop_yz + tmp_pop_xz + tmp_pop_xyz, 2])
 
 	#calculate angle average
 	#=======================
@@ -1944,7 +1944,7 @@ def angle_graph_derivative():
 	#-----------------
 	ax1 = fig.add_subplot(311)
 	plt.plot(frames_time, norm_dnxdx_avg, color = 'k', label = "avg", linewidth = 2)
-	plt.fill_between(frames_time, norm_dnxdx_avg - norm_dnxdx_std, norm_dnxdx_avg + norm_dnxdx_std, color = '#A4A4A4', edgecolor = '#A4A4A4', linewidth = 0, alpha = 0.2)
+	#plt.fill_between(frames_time, norm_dnxdx_avg - norm_dnxdx_std, norm_dnxdx_avg + norm_dnxdx_std, color = '#A4A4A4', edgecolor = '#A4A4A4', linewidth = 0, alpha = 0.2)
 	#plt.hlines(0, min(frames_time), max(frames_time))
 	fontP.set_size("small")
 	ax1.legend(prop=fontP)
@@ -1968,7 +1968,7 @@ def angle_graph_derivative():
 	#------------
 	ax2 = fig.add_subplot(312)
 	plt.plot(frames_time, norm_dnydy_avg, color = 'k', label = "avg", linewidth = 2)
-	plt.fill_between(frames_time, norm_dnydy_avg - norm_dnydy_std, norm_dnydy_avg + norm_dnydy_std, color = '#A4A4A4', edgecolor = '#A4A4A4', linewidth = 0, alpha = 0.2)
+	#plt.fill_between(frames_time, norm_dnydy_avg - norm_dnydy_std, norm_dnydy_avg + norm_dnydy_std, color = '#A4A4A4', edgecolor = '#A4A4A4', linewidth = 0, alpha = 0.2)
 	#plt.hlines(0, min(frames_time), max(frames_time))
 	fontP.set_size("small")
 	ax2.legend(prop=fontP)
@@ -1992,7 +1992,7 @@ def angle_graph_derivative():
 	#------------
 	ax3 = fig.add_subplot(313)
 	plt.plot(frames_time, norm_dnzdz_avg, color = 'k', label = "avg", linewidth = 2)
-	plt.fill_between(frames_time, norm_dnzdz_avg - norm_dnzdz_avg, norm_dnzdz_avg + norm_dnzdz_std, color = '#A4A4A4', edgecolor = '#A4A4A4', linewidth = 0, alpha = 0.2)
+	#plt.fill_between(frames_time, norm_dnzdz_avg - norm_dnzdz_avg, norm_dnzdz_avg + norm_dnzdz_std, color = '#A4A4A4', edgecolor = '#A4A4A4', linewidth = 0, alpha = 0.2)
 	#plt.hlines(0, min(frames_time), max(frames_time))
 	fontP.set_size("small")
 	ax3.legend(prop=fontP)
