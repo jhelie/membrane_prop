@@ -973,7 +973,7 @@ def identify_leaflets():												#DONE
 			leaflet_sele["both"] = U.selectAtoms(leaflet_sele_string)
 			tmp_lipids_avg_z = leaflet_sele["both"].centerOfGeometry()[2]
 			leaflet_sele["upper"] = leaflet_sele["both"].selectAtoms("prop z > " + str(tmp_lipids_avg_z))
-			leaflet_sele["lower"] = leaflet_sele["both"].selectAtoms("prop z < " + str(tmp_lipids_avg_z))
+			leaflet_sele["lower"] = leaflet_sele["both"].selectAtoms("prop z < " + str(tmp_lipids_avg_z))			
 		print " -found 2 leaflets: ", leaflet_sele["upper"].numberOfResidues(), '(upper) and ', leaflet_sele["lower"].numberOfResidues(), '(lower) lipids'
 
 	#store number of beads used
@@ -1465,7 +1465,7 @@ def calculate_properties(box_dim, f_nb):								#DONE
 	
 	#----------------------------------------------------------------------------------------------
 	#NB: we could calculate a lot more (9 in total - each component of the norm in each direction)
-	#    but we only really care about d(nx)/dx and d(ny)/dy (d(nz)/dz should remain close to zero)
+	#    but we only really care about d(nx)/dx, d(ny)/dy and (d(nz)/dz (that last one is particularly telling)
 	#----------------------------------------------------------------------------------------------
 	
 	#d(nx)/dx ([0] = nx and x, xy, xz and xyz contribute)
