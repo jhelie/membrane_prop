@@ -1012,19 +1012,16 @@ def struct_data():
 	
 	#angle
 	#-----
-	global theta_deg_avg, theta_deg_std
-	global theta_dx_avg, theta_dx_std
-	global theta_dy_avg, theta_dy_std
-	global theta_dz_avg, theta_dz_std
-	theta_deg_avg = np.zeros(nb_frames_to_process)
-	theta_deg_std = np.zeros(nb_frames_to_process)
-	theta_dx_avg = np.zeros(nb_frames_to_process)
-	theta_dx_std = np.zeros(nb_frames_to_process)
-	theta_dy_avg = np.zeros(nb_frames_to_process)
-	theta_dy_std = np.zeros(nb_frames_to_process)
-	theta_dz_avg = np.zeros(nb_frames_to_process)
-	theta_dz_std = np.zeros(nb_frames_to_process)
-	
+	global norm_dnxdx_avg, norm_dnxdx_std
+	global norm_dnydy_avg, norm_dnydy_std
+	global norm_dnzdz_avg, norm_dnzdz_std
+	norm_dnxdx_avg = np.zeros(nb_frames_to_process)
+	norm_dnxdx_std = np.zeros(nb_frames_to_process)
+	norm_dnydy_avg = np.zeros(nb_frames_to_process)
+	norm_dnydy_std = np.zeros(nb_frames_to_process)
+	norm_dnzdz_avg = np.zeros(nb_frames_to_process)
+	norm_dnzdz_std = np.zeros(nb_frames_to_process)
+
 	#particles
 	#---------
 	global density_particles_nb
@@ -1119,7 +1116,8 @@ def calculate_properties(box_dim, f_nb):								#DONE
 	loc_z_axis = loc_z_axis.reshape((3,1))
 	tmp_grid_statistics_upper_nb_beads = []
 	tmp_grid_statistics_lower_nb_beads = []
-	tmp_grid_angles = np.zeros(((box_dim[0] // args.voxel_x) + 1 , (box_dim[1] // args.voxel_y) + 1, (box_dim[2] // args.voxel_z) + 1))
+	tmp_pos = np.zeros(((box_dim[0] // args.voxel_x) + 1 , (box_dim[1] // args.voxel_y) + 1, (box_dim[2] // args.voxel_z) + 1, 3))
+	tmp_norm = np.zeros(((box_dim[0] // args.voxel_x) + 1 , (box_dim[1] // args.voxel_y) + 1, (box_dim[2] // args.voxel_z) + 1, 3))
 	
 	#create coordinate array of "middle" leaflet
 	#===========================================
@@ -1236,10 +1234,10 @@ def calculate_properties(box_dim, f_nb):								#DONE
 			theta_tot_tmp.append(np.arctan2(norm_sin, norm_cos) * 180 /float(np.pi))
 			
 			#store it in the voxel grid
-			#tmp_grid_occupancy[tmp_voxel_center[0] // args.voxel_x, tmp_voxel_center[1] // args.voxel_y, tmp_voxel_center[2] // args.voxel_z] = theta_tot_tmp[-1]
-			#debug
-			if tmp_grid_angles[tmp_voxel_center[0] // args.voxel_x, tmp_voxel_center[1] // args.voxel_y, tmp_voxel_center[2] // args.voxel_z] == 0:
-				tmp_grid_angles[tmp_voxel_center[0] // args.voxel_x, tmp_voxel_center[1] // args.voxel_y, tmp_voxel_center[2] // args.voxel_z] = theta_tot_tmp[-1]
+			tmp_index = (tmp_voxel_center[0] // args.voxel_x, tmp_voxel_center[1] // args.voxel_y, tmp_voxel_center[2] // args.voxel_z)
+			if tmp_norm[(tmp_index)] == [0, 0, 0]:
+				tmp_pos[(tmp_index)] = tmp_voxel_center
+				tmp_norm[(tmp_index)] = norm_vec
 			else:
 				print "Warning: voxel sampled twice in the same frame"
 				
@@ -1350,59 +1348,147 @@ def calculate_properties(box_dim, f_nb):								#DONE
 			grid_statistics_lower_nb_beads[f_nb, 1] = np.std(tmp_grid_statistics_lower_nb_beads)
 
 	#calculate convexity
-	#===================
-	#TODO:
-	# -add space dependence
-	# -add more diagonal neighbours
-	# -add second derivative
-	
-	#derivative along x axis
-	#----------------------
-	#create angles matrix shifted to the right
-	tmp_grid_angles_shifted = np.zeros(np.shape(tmp_grid_angles))
-	tmp_grid_angles_shifted[1:,:] = tmp_grid_angles[:-1,:]
-	tmp_grid_angles_shifted[0,:] = tmp_grid_angles[-1,:] 				#this takes pbc into account
-	
-	#calculate differences
-	tmp_diff = tmp_grid_angles - tmp_grid_angles_shifted
-	
-	#store differences only where adjacent cells were populated
-	tmp_dx = np.zeros(np.shape(tmp_grid_angles))
-	tmp_dx = tmp_diff[np.multiply(tmp_grid_angles > 0, tmp_grid_angles_shifted > 0)]
-	theta_dx_avg[f_nb] = np.average(tmp_dx)
-	theta_dx_std[f_nb] = np.std(tmp_dx)
+	#===================	
+	#create grids structures
+	#-----------------------
+	grid_shape = np.shape(tmp_norm)
+	#shifted grids: local normal
+	tmp_shifted_norm_x = np.zeros(grid_shape)
+	tmp_shifted_norm_y = np.zeros(grid_shape)
+	tmp_shifted_norm_z = np.zeros(grid_shape)
+	tmp_shifted_norm_xy = np.zeros(grid_shape)
+	tmp_shifted_norm_xz = np.zeros(grid_shape)
+	tmp_shifted_norm_yz = np.zeros(grid_shape)
+	tmp_shifted_norm_xyz = np.zeros(grid_shape)	
+	#shifted grids: positions
+	tmp_shifted_pos_x = np.zeros(grid_shape)
+	tmp_shifted_pos_y = np.zeros(grid_shape)
+	tmp_shifted_pos_z = np.zeros(grid_shape)
+	tmp_shifted_pos_xy = np.zeros(grid_shape)
+	tmp_shifted_pos_xz = np.zeros(grid_shape)
+	tmp_shifted_pos_yz = np.zeros(grid_shape)
+	tmp_shifted_pos_xyz = np.zeros(grid_shape)		
+	#deltas between shifted grids: local normal
+	tmp_delta_norm_x = np.zeros(grid_shape)
+	tmp_delta_norm_y = np.zeros(grid_shape)
+	tmp_delta_norm_z = np.zeros(grid_shape)
+	tmp_delta_norm_xy = np.zeros(grid_shape)
+	tmp_delta_norm_xz = np.zeros(grid_shape)
+	tmp_delta_norm_yz = np.zeros(grid_shape)
+	tmp_delta_norm_xyz = np.zeros(grid_shape)	
+	#deltas between shifted grids: positions
+	tmp_delta_pos_x = np.zeros(grid_shape)
+	tmp_delta_pos_y = np.zeros(grid_shape)
+	tmp_delta_pos_z = np.zeros(grid_shape)
+	tmp_delta_pos_xy = np.zeros(grid_shape)
+	tmp_delta_pos_xz = np.zeros(grid_shape)
+	tmp_delta_pos_yz = np.zeros(grid_shape)
+	tmp_delta_pos_xyz = np.zeros(grid_shape)	
+	#derivatives
+	tmp_norm_d = np.zeros(grid_shape)
 
-	#derivative along y axis
-	#----------------------
-	#create angles matrix shifted to the right
-	tmp_grid_angles_shifted = np.zeros(np.shape(tmp_grid_angles))
-	tmp_grid_angles_shifted[:,1:,:] = tmp_grid_angles[:,:-1,:]
-	tmp_grid_angles_shifted[:,0,:] = tmp_grid_angles[:,-1,:] 			#this takes pbc into account
+	#fill shifted grids: local normal
+	#--------------------------------
+	#primary shifts
+	tmp_shifted_norm_x[1:,:] = tmp_norm[:-1,:]							#shift along x
+	tmp_shifted_norm_y[:,1:,:] = tmp_norm[:,:-1,:]						#shift along y
+	tmp_shifted_norm_z[:,:,1:,:] = tmp_norm[:,:,:-1,:]					#shift along z
+	tmp_shifted_norm_x[0,:] = tmp_norm[-1,:] 							#pbc: x
+	tmp_shifted_norm_y[:,0,:] = tmp_norm[:,-1,:] 						#pbc: y
+	tmp_shifted_norm_y[:,:,0,:] = tmp_norm[:,:,-1,:] 					#pbc: z
+	#secondary shifts
+	tmp_shifted_norm_xy[:,1:,:] = tmp_shifted_norm_x[:,:-1,:]			#shift along y
+	tmp_shifted_norm_xz[:,:,1:,:] = tmp_shifted_norm_x[:,:,:-1,:]		#shift along z
+	tmp_shifted_norm_yz[:,:,1:,:] = tmp_shifted_norm_y[:,:,:-1,:]		#shift along z
+	tmp_shifted_norm_xy[:,0,:] = tmp_shifted_norm_x[:,-1,:]				#pbc: y
+	tmp_shifted_norm_xz[:,:,0,:] = tmp_shifted_norm_x[:,:,-1,:]			#pbc: z
+	tmp_shifted_norm_yz[:,:,0,:] = tmp_shifted_norm_y[:,:,-1,:]			#pbc: z
+	#tertiary shift
+	tmp_shifted_norm_xyz[:,:,1:,:] = tmp_shifted_norm_xy[:,:,:-1,:]		#shift along z
+	tmp_shifted_norm_xyz[:,:,0,:] = tmp_shifted_norm_xy[:,:,-1,:]		#pbc: z
 	
-	#calculate differences
-	tmp_diff = tmp_grid_angles - tmp_grid_angles_shifted
-	
-	#store differences only where adjacent cells were populated
-	tmp_dy = np.zeros(np.shape(tmp_grid_angles))
-	tmp_dy = tmp_diff[np.multiply(tmp_grid_angles > 0, tmp_grid_angles_shifted > 0)]
-	theta_dy_avg[f_nb] = np.average(tmp_dy)
-	theta_dy_std[f_nb] = np.std(tmp_dy)
+	#fill shifted grids: positions
+	#-----------------------------
+	#primary shifts
+	tmp_shifted_pos_x[1:,:] = tmp_pos[:-1,:]									#shift along x
+	tmp_shifted_pos_y[:,1:,:] = tmp_pos[:,:-1,:]								#shift along y
+	tmp_shifted_pos_z[:,:,1:,:] = tmp_pos[:,:,:-1,:]							#shift along z
+	tmp_shifted_pos_x[0,:] = tmp_pos[-1,:] - box_dim[0]							#pbc: x
+	tmp_shifted_pos_y[:,0,:] = tmp_pos[:,-1,:] - box_dim[1]						#pbc: y
+	tmp_shifted_pos_y[:,:,0,:] = tmp_pos[:,:,-1,:] - box_dim[2]					#pbc: z
+	#secondary shifts
+	tmp_shifted_pos_xy[:,1:,:] = tmp_shifted_pos_x[:,:-1,:]						#shift along y
+	tmp_shifted_pos_xz[:,:,1:,:] = tmp_shifted_pos_x[:,:,:-1,:]					#shift along z
+	tmp_shifted_pos_yz[:,:,1:,:] = tmp_shifted_pos_y[:,:,:-1,:]					#shift along z
+	tmp_shifted_pos_xy[:,0,:] = tmp_shifted_pos_x[:,-1,:] - box_dim[1]			#pbc: y
+	tmp_shifted_pos_xz[:,:,0,:] = tmp_shifted_pos_x[:,:,-1,:] - box_dim[2]		#pbc: z
+	tmp_shifted_pos_yz[:,:,0,:] = tmp_shifted_pos_y[:,:,-1,:] - box_dim[2]		#pbc: z
+	#tertiary shift
+	tmp_shifted_pos_xyz[:,:,1:,:] = tmp_shifted_pos_xy[:,:,:-1,:]				#shift along z
+	tmp_shifted_pos_xyz[:,:,0,:] = tmp_shifted_pos_xy[:,:,-1,:]	- box_dim[2]	#pbc: z
 
-	#derivative along z axis
-	#----------------------
-	#create angles matrix shifted to the right
-	tmp_grid_angles_shifted = np.zeros(np.shape(tmp_grid_angles))
-	tmp_grid_angles_shifted[:,1:] = tmp_grid_angles[:,:-1]
-	tmp_grid_angles_shifted[:,0] = tmp_grid_angles[:,-1] 				#this takes pbc into account
+	#fill deltas grids: local normal
+	#-------------------------------
+	tmp_delta_norm_x = tmp_norm - tmp_shifted_norm_x
+	tmp_delta_norm_y = tmp_norm - tmp_shifted_norm_y
+	tmp_delta_norm_z = tmp_norm - tmp_shifted_norm_z
+	tmp_delta_norm_xy = tmp_norm - tmp_shifted_norm_xy
+	tmp_delta_norm_xz = tmp_norm - tmp_shifted_norm_xz
+	tmp_delta_norm_yz = tmp_norm - tmp_shifted_norm_yz
+	tmp_delta_norm_xyz = tmp_norm - tmp_shifted_norm_xyz
+
+	#fill deltas grids: positions
+	#----------------------------
+	tmp_delta_pos_x = tmp_pos - tmp_shifted_pos_x
+	tmp_delta_pos_y = tmp_pos - tmp_shifted_pos_y
+	tmp_delta_pos_z = tmp_pos - tmp_shifted_pos_z
+	tmp_delta_pos_xy = tmp_pos - tmp_shifted_pos_xy
+	tmp_delta_pos_xz = tmp_pos - tmp_shifted_pos_xz
+	tmp_delta_pos_yz = tmp_pos - tmp_shifted_pos_yz
+	tmp_delta_pos_xyz = tmp_pos - tmp_shifted_pos_xyz
+
+	#find out which voxels are populated
+	#-----------------------------------
+	tmp_pop_vox = np.any(tmp_norm[:,:,:] != 0, 3)
+	tmp_pop_x = np.multiply(tmp_pop_vox, np.any(tmp_norm_x[:,:,:] != 0, 3))
+	tmp_pop_y = np.multiply(tmp_pop_vox, np.any(tmp_norm_y[:,:,:] != 0, 3))
+	tmp_pop_z = np.multiply(tmp_pop_vox, np.any(tmp_norm_z[:,:,:] != 0, 3))
+	tmp_pop_xy = np.multiply(tmp_pop_vox, np.any(tmp_norm_xy[:,:,:] != 0, 3))
+	tmp_pop_xz = np.multiply(tmp_pop_vox, np.any(tmp_norm_xz[:,:,:] != 0, 3))	
+	tmp_pop_yz = np.multiply(tmp_pop_vox, np.any(tmp_norm_yz[:,:,:] != 0, 3))
+	tmp_pop_xyz = np.multiply(tmp_pop_vox, np.any(tmp_norm_xyz[:,:,:] != 0, 3))
 	
-	#calculate differences
-	tmp_diff = tmp_grid_angles - tmp_grid_angles_shifted
+	#calculate derivatives
+	#---------------------
 	
-	#store differences only where adjacent cells were populated
-	tmp_dz = np.zeros(np.shape(tmp_grid_angles))
-	tmp_dz = tmp_diff[np.multiply(tmp_grid_angles > 0, tmp_grid_angles_shifted > 0)]
-	theta_dz_avg[f_nb] = np.average(tmp_dz)
-	theta_dz_std[f_nb] = np.std(tmp_dz)
+	#----------------------------------------------------------------------------------------------
+	#NB: we could calculate a lot more (9 in total - each component of the norm in each direction)
+	#    but we only really care about d(nx)/dx and d(ny)/dy (d(nz)/dz should remain close to zero)
+	#----------------------------------------------------------------------------------------------
+	
+	#d(nx)/dx ([0] = nx and x, xy, xz and xyz contribute)
+	tmp_norm_d[tmp_pop_x][0] += tmp_delta_norm_x[tmp_pop_x][0] / tmp_delta_pos_x[tmp_pop_x][0]
+	tmp_norm_d[tmp_pop_xy][0] += tmp_delta_norm_xy[tmp_pop_xy][0] / tmp_delta_pos_xy[tmp_pop_xy][0]
+	tmp_norm_d[tmp_pop_xz][0] += tmp_delta_norm_xz[tmp_pop_xz][0] / tmp_delta_pos_xz[tmp_pop_xz][0]
+	tmp_norm_d[tmp_pop_xyz][0] += tmp_delta_norm_xyz[tmp_pop_xyz][0] / tmp_delta_pos_xyz[tmp_pop_xyz][0]
+	#d(ny)/dy ([1] = ny and y, xy, yz and xyz contribute)
+	tmp_norm_d[tmp_pop_y][1] += tmp_delta_norm_y[tmp_pop_y][1] / tmp_delta_pos_y[tmp_pop_y][1]
+	tmp_norm_d[tmp_pop_xy][1] += tmp_delta_norm_xy[tmp_pop_xy][1] / tmp_delta_pos_xy[tmp_pop_xy][1]
+	tmp_norm_d[tmp_pop_yz][1] += tmp_delta_norm_yz[tmp_pop_yz][1] / tmp_delta_pos_yz[tmp_pop_yz][1]
+	tmp_norm_d[tmp_pop_xyz][1] += tmp_delta_norm_xyz[tmp_pop_xyz][1] / tmp_delta_pos_xyz[tmp_pop_xyz][1]
+	#d(nz)/dz ([2] = nz and z, xz, yz and xyz contribute)
+	tmp_norm_d[tmp_pop_z][2] += tmp_delta_norm_z[tmp_pop_z][2] / tmp_delta_pos_z[tmp_pop_z][2]
+	tmp_norm_d[tmp_pop_xz][2] += tmp_delta_norm_xz[tmp_pop_xz][2] / tmp_delta_pos_xz[tmp_pop_xz][2]
+	tmp_norm_d[tmp_pop_yz][2] += tmp_delta_norm_yz[tmp_pop_yz][2] / tmp_delta_pos_yz[tmp_pop_yz][2]
+	tmp_norm_d[tmp_pop_xyz][2] += tmp_delta_norm_xyz[tmp_pop_xyz][2] / tmp_delta_pos_xyz[tmp_pop_xyz][2]
+
+	#calculate avg derivatives
+	norm_dnxdx_avg[f_nb] = np.average(tmp_norm_d[tmp_pop_x + tmp_pop_xy + tmp_pop_xz + tmp_pop_xyz][0])
+	norm_dnydy_avg[f_nb] = np.average(tmp_norm_d[tmp_pop_y + tmp_pop_xy + tmp_pop_yz + tmp_pop_xyz][1])
+	norm_dnzdz_avg[f_nb] = np.average(tmp_norm_d[tmp_pop_z + tmp_pop_yz + tmp_pop_xz + tmp_pop_xyz][2])
+	norm_dnxdx_std[f_nb] = np.std(tmp_norm_d[tmp_pop_x + tmp_pop_xy + tmp_pop_xz + tmp_pop_xyz][0])
+	norm_dnydy_std[f_nb] = np.std(tmp_norm_d[tmp_pop_y + tmp_pop_xy + tmp_pop_yz + tmp_pop_xyz][1])
+	norm_dnzdz_std[f_nb] = np.std(tmp_norm_d[tmp_pop_z + tmp_pop_yz + tmp_pop_xz + tmp_pop_xyz][2])
 
 	#calculate angle average
 	#=======================
@@ -1835,19 +1921,18 @@ def angle_graph_derivative():
 
 	#create figure
 	fig = plt.figure(figsize=(8, 6.2))
-	fig.suptitle("Evolution of spatial derivatives of angle between local normal and z axis")
+	fig.suptitle("Evolution of normal vector derivatives")
 
-	#plot data: x
-	#------------
+	#plot data: dnx/dx
+	#-----------------
 	ax1 = fig.add_subplot(311)
-	plt.plot(frames_time, theta_dx_avg, color = 'k', label = "avg", linewidth = 2)
-	plt.fill_between(frames_time, theta_dx_avg - theta_dx_std, theta_dx_avg + theta_dx_std, color = '#A4A4A4', edgecolor = '#A4A4A4', linewidth = 0, alpha = 0.2)
+	plt.plot(frames_time, norm_dnxdx_avg, color = 'k', label = "avg", linewidth = 2)
+	plt.fill_between(frames_time, norm_dnxdx_avg - norm_dnxdx_std, norm_dnxdx_avg + norm_dnxdx_std, color = '#A4A4A4', edgecolor = '#A4A4A4', linewidth = 0, alpha = 0.2)
 	#plt.hlines(0, min(frames_time), max(frames_time))
 	fontP.set_size("small")
-	ax.legend(prop=fontP)
+	ax1.legend(prop=fontP)
 	plt.xlabel('time (ns)')
-	plt.ylabel('d(theta)/dx')
-	
+	plt.ylabel('d(nx)/dx')	
 	#save figure
 	ax1.set_xlim(0, max(frames_time))
 	#ax1.set_ylim(0, 90)
@@ -1865,14 +1950,13 @@ def angle_graph_derivative():
 	#plot data: y
 	#------------
 	ax2 = fig.add_subplot(312)
-	plt.plot(frames_time, theta_dy_avg, color = 'k', label = "avg", linewidth = 2)
-	plt.fill_between(frames_time, theta_dy_avg - theta_dy_std, theta_dy_avg + theta_dy_std, color = '#A4A4A4', edgecolor = '#A4A4A4', linewidth = 0, alpha = 0.2)
+	plt.plot(frames_time, norm_dnydy_avg, color = 'k', label = "avg", linewidth = 2)
+	plt.fill_between(frames_time, norm_dnydy_avg - norm_dnydy_std, norm_dnydy_avg + norm_dnydy_std, color = '#A4A4A4', edgecolor = '#A4A4A4', linewidth = 0, alpha = 0.2)
 	#plt.hlines(0, min(frames_time), max(frames_time))
 	fontP.set_size("small")
-	ax.legend(prop=fontP)
+	ax2.legend(prop=fontP)
 	plt.xlabel('time (ns)')
-	plt.ylabel('d(theta)/dy')
-	
+	plt.ylabel('d(ny)/dy')
 	#save figure
 	ax2.set_xlim(0, max(frames_time))
 	#ax2.set_ylim(0, 90)
@@ -1889,15 +1973,14 @@ def angle_graph_derivative():
 	
 	#plot data: z
 	#------------
-	ax3 = fig.add_subplot(312)
-	plt.plot(frames_time, theta_dz_avg, color = 'k', label = "avg", linewidth = 2)
-	plt.fill_between(frames_time, theta_dz_avg - theta_dz_std, theta_dz_avg + theta_dz_std, color = '#A4A4A4', edgecolor = '#A4A4A4', linewidth = 0, alpha = 0.2)
+	ax3 = fig.add_subplot(313)
+	plt.plot(frames_time, norm_dnzdz_avg, color = 'k', label = "avg", linewidth = 2)
+	plt.fill_between(frames_time, norm_dnzdz_avg - norm_dnydz_avg, norm_dnzdz_avg + norm_dnzdz_std, color = '#A4A4A4', edgecolor = '#A4A4A4', linewidth = 0, alpha = 0.2)
 	#plt.hlines(0, min(frames_time), max(frames_time))
 	fontP.set_size("small")
-	ax.legend(prop=fontP)
+	ax3.legend(prop=fontP)
 	plt.xlabel('time (ns)')
-	plt.ylabel('d(theta)/dz')
-	
+	plt.ylabel('d(nz)/dz')
 	#save figure
 	ax3.set_xlim(0, max(frames_time))
 	#ax3.set_ylim(0, 90)
