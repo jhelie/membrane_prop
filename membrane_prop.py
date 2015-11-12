@@ -2138,6 +2138,7 @@ density_write_particles()
 density_graph_particles()
 angle_write_extent()
 angle_graph_extent()
+angle_write_derivative()
 angle_graph_derivative()
 if args.chargesfilename != "no":
 	density_write_charges()
