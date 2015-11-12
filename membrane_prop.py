@@ -2069,7 +2069,7 @@ def angle_graph_derivative():
 	ax3.xaxis.set_ticks_position('bottom')
 	ax3.yaxis.set_ticks_position('left')
 	ax3.set_xlim(0, max(frames_time))
-	if argsnzymax != -1:
+	if args.nzmax != -1:
 		ax3.set_ylim(top = args.nzmax)
 	if args.nzmin != -1:
 		ax3.set_ylim(bottom = args.nzmin)
