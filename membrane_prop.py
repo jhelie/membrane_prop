@@ -197,6 +197,13 @@ Leaflets identification
 --leaflets	optimise: leaflet identification technique, see note 4(b)
 --use_gro		: use gro file instead of xtc, see note 4(b)
 
+Convexity plots
+-----------------------------------------------------
+--ymax			: upper boundary of y axis
+--ymin			: lower boundary of y axis
+--nbx			: nb ticks on x axis
+--nby			: nb ticks on y axis
+
 Other options
 -----------------------------------------------------
 --version		: show version number and exit
@@ -233,6 +240,12 @@ parser.add_argument('--flipflops', nargs=1, dest='selection_file_ff', default=['
 parser.add_argument('--leaflets', nargs=1, dest='cutoff_leaflet', default=['optimise'], help=argparse.SUPPRESS)
 parser.add_argument('--use_gro', dest='use_gro', action='store_true', help=argparse.SUPPRESS)
 
+#convexity plots
+parser.add_argument('--ymax', nargs=1, dest='ymax', default=[-1], type=float, help=argparse.SUPPRESS)
+parser.add_argument('--ymin', nargs=1, dest='ymin', default=[-1], type=float, help=argparse.SUPPRESS)
+parser.add_argument('--nbx', nargs=1, dest='nbx', default=[-1], type=int, help=argparse.SUPPRESS)
+parser.add_argument('--nby', nargs=1, dest='nby', default=[-1], type=int, help=argparse.SUPPRESS)
+
 #other options
 parser.add_argument('--version', action='version', version='%(prog)s v' + version_nb, help=argparse.SUPPRESS)
 parser.add_argument('-h','--help', action='help', help=argparse.SUPPRESS)
@@ -265,6 +278,11 @@ args.normal_d = args.normal_d[0]
 args.beadsfilename = args.beadsfilename[0]
 args.cutoff_leaflet = args.cutoff_leaflet[0]
 args.selection_file_ff = args.selection_file_ff[0]
+#convexity plots
+args.ymax = args.ymax[0]
+args.ymin = args.ymin[0]
+args.nbx = args.nbx[0]
+args.nby = args.nby[0]
 
 #=========================================================================================
 # import modules (doing it now otherwise might crash before we can display the help menu!)
@@ -1943,70 +1961,79 @@ def angle_graph_derivative():
 	#plot data: dnx/dx
 	#-----------------
 	ax1 = fig.add_subplot(311)
-	plt.plot(frames_time, norm_dnxdx_avg, color = 'k', label = "avg", linewidth = 2)
+	plt.plot(frames_time, norm_dnxdx_avg, color = 'k', linewidth = 2)
 	#plt.fill_between(frames_time, norm_dnxdx_avg - norm_dnxdx_std, norm_dnxdx_avg + norm_dnxdx_std, color = '#A4A4A4', edgecolor = '#A4A4A4', linewidth = 0, alpha = 0.2)
-	#plt.hlines(0, min(frames_time), max(frames_time))
+	plt.hlines(0, min(frames_time), max(frames_time), linestyle = "dashed")
 	fontP.set_size("small")
-	ax1.legend(prop=fontP)
 	plt.xlabel('time (ns)')
 	plt.ylabel('d(nx)/dx')	
-	#save figure
-	ax1.set_xlim(0, max(frames_time))
-	#ax1.set_ylim(0, 90)
 	ax1.spines['top'].set_visible(False)
 	ax1.spines['right'].set_visible(False)
 	ax1.xaxis.set_ticks_position('bottom')
 	ax1.yaxis.set_ticks_position('left')
-	ax1.xaxis.set_major_locator(MaxNLocator(nbins=10))
-	ax1.yaxis.set_major_locator(MaxNLocator(nbins=7))
+	ax1.set_xlim(0, max(frames_time))
+	if args.ymax != -1:
+		ax1.set_ylim(top = args.ymax)
+	if args.ymin != -1:
+		ax1.set_ylim(bottom = args.ymin)
+	if args.nbx != -1:
+		ax1.xaxis.set_major_locator(MaxNLocator(nbins=args.nbx))
+	if args.nby != -1:
+		ax1.yaxis.set_major_locator(MaxNLocator(nbins=args.nby))
 	ax1.xaxis.labelpad = 20
 	ax1.yaxis.labelpad = 20
 	plt.setp(ax1.xaxis.get_majorticklabels(), fontsize = "small")
 	plt.setp(ax1.yaxis.get_majorticklabels(), fontsize = "small")
 	
-	#plot data: y
-	#------------
+	#plot data: dny/dy
+	#-----------------
 	ax2 = fig.add_subplot(312)
-	plt.plot(frames_time, norm_dnydy_avg, color = 'k', label = "avg", linewidth = 2)
+	plt.plot(frames_time, norm_dnydy_avg, color = 'k', linewidth = 2)
 	#plt.fill_between(frames_time, norm_dnydy_avg - norm_dnydy_std, norm_dnydy_avg + norm_dnydy_std, color = '#A4A4A4', edgecolor = '#A4A4A4', linewidth = 0, alpha = 0.2)
-	#plt.hlines(0, min(frames_time), max(frames_time))
+	plt.hlines(0, min(frames_time), max(frames_time), linestyle = "dashed")
 	fontP.set_size("small")
-	ax2.legend(prop=fontP)
 	plt.xlabel('time (ns)')
-	plt.ylabel('d(ny)/dy')
-	#save figure
-	ax2.set_xlim(0, max(frames_time))
-	#ax2.set_ylim(0, 90)
+	plt.ylabel('d(ny)/dy')	
 	ax2.spines['top'].set_visible(False)
 	ax2.spines['right'].set_visible(False)
 	ax2.xaxis.set_ticks_position('bottom')
 	ax2.yaxis.set_ticks_position('left')
-	ax2.xaxis.set_major_locator(MaxNLocator(nbins=10))
-	ax2.yaxis.set_major_locator(MaxNLocator(nbins=7))
+	ax2.set_xlim(0, max(frames_time))
+	if args.ymax != -1:
+		ax2.set_ylim(top = args.ymax)
+	if args.ymin != -1:
+		ax2.set_ylim(bottom = args.ymin)
+	if args.nbx != -1:
+		ax2.xaxis.set_major_locator(MaxNLocator(nbins=args.nbx))
+	if args.nby != -1:
+		ax2.yaxis.set_major_locator(MaxNLocator(nbins=args.nby))
 	ax2.xaxis.labelpad = 20
 	ax2.yaxis.labelpad = 20
 	plt.setp(ax2.xaxis.get_majorticklabels(), fontsize = "small")
 	plt.setp(ax2.yaxis.get_majorticklabels(), fontsize = "small")
 	
-	#plot data: z
-	#------------
+	#plot data: dnz/dz
+	#-----------------
 	ax3 = fig.add_subplot(313)
-	plt.plot(frames_time, norm_dnzdz_avg, color = 'k', label = "avg", linewidth = 2)
+	plt.plot(frames_time, norm_dnzdz_avg, color = 'k', linewidth = 2)
 	#plt.fill_between(frames_time, norm_dnzdz_avg - norm_dnzdz_avg, norm_dnzdz_avg + norm_dnzdz_std, color = '#A4A4A4', edgecolor = '#A4A4A4', linewidth = 0, alpha = 0.2)
-	#plt.hlines(0, min(frames_time), max(frames_time))
+	plt.hlines(0, min(frames_time), max(frames_time), linestyle = "dashed")
 	fontP.set_size("small")
-	ax3.legend(prop=fontP)
 	plt.xlabel('time (ns)')
-	plt.ylabel('d(nz)/dz')
-	#save figure
-	ax3.set_xlim(0, max(frames_time))
-	#ax3.set_ylim(0, 90)
+	plt.ylabel('d(nz)/dz')	
 	ax3.spines['top'].set_visible(False)
 	ax3.spines['right'].set_visible(False)
 	ax3.xaxis.set_ticks_position('bottom')
 	ax3.yaxis.set_ticks_position('left')
-	ax3.xaxis.set_major_locator(MaxNLocator(nbins=10))
-	ax3.yaxis.set_major_locator(MaxNLocator(nbins=7))
+	ax3.set_xlim(0, max(frames_time))
+	if args.ymax != -1:
+		ax3.set_ylim(top = args.ymax)
+	if args.ymin != -1:
+		ax3.set_ylim(bottom = args.ymin)
+	if args.nbx != -1:
+		ax3.xaxis.set_major_locator(MaxNLocator(nbins=args.nbx))
+	if args.nby != -1:
+		ax3.yaxis.set_major_locator(MaxNLocator(nbins=args.nby))
 	ax3.xaxis.labelpad = 20
 	ax3.yaxis.labelpad = 20
 	plt.setp(ax3.xaxis.get_majorticklabels(), fontsize = "small")
