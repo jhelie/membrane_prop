@@ -199,8 +199,12 @@ Leaflets identification
 
 Convexity plots
 -----------------------------------------------------
---ymax			: upper boundary of y axis
---ymin			: lower boundary of y axis
+--nxmax			: upper boundary of y axis for dnx/dx convexity plot
+--nxmin			: lower boundary of y axis for dnx/dx convexity plot
+--nymax			: upper boundary of y axis for dny/dy convexity plot
+--nymin			: lower boundary of y axis for dny/dy convexity plot
+--nzmax			: upper boundary of y axis for dnz/dz convexity plot
+--nzmin			: lower boundary of y axis for dnz/dz convexity plot
 --nbx			: nb ticks on x axis
 --nby			: nb ticks on y axis
 
@@ -241,8 +245,12 @@ parser.add_argument('--leaflets', nargs=1, dest='cutoff_leaflet', default=['opti
 parser.add_argument('--use_gro', dest='use_gro', action='store_true', help=argparse.SUPPRESS)
 
 #convexity plots
-parser.add_argument('--ymax', nargs=1, dest='ymax', default=[-1], type=float, help=argparse.SUPPRESS)
-parser.add_argument('--ymin', nargs=1, dest='ymin', default=[-1], type=float, help=argparse.SUPPRESS)
+parser.add_argument('--nxmax', nargs=1, dest='nxmax', default=[-1], type=float, help=argparse.SUPPRESS)
+parser.add_argument('--nxmin', nargs=1, dest='nxmin', default=[-1], type=float, help=argparse.SUPPRESS)
+parser.add_argument('--nymax', nargs=1, dest='nymax', default=[-1], type=float, help=argparse.SUPPRESS)
+parser.add_argument('--nymin', nargs=1, dest='nymin', default=[-1], type=float, help=argparse.SUPPRESS)
+parser.add_argument('--nzmax', nargs=1, dest='nzmax', default=[-1], type=float, help=argparse.SUPPRESS)
+parser.add_argument('--nzmin', nargs=1, dest='nzmin', default=[-1], type=float, help=argparse.SUPPRESS)
 parser.add_argument('--nbx', nargs=1, dest='nbx', default=[-1], type=int, help=argparse.SUPPRESS)
 parser.add_argument('--nby', nargs=1, dest='nby', default=[-1], type=int, help=argparse.SUPPRESS)
 
@@ -279,8 +287,12 @@ args.beadsfilename = args.beadsfilename[0]
 args.cutoff_leaflet = args.cutoff_leaflet[0]
 args.selection_file_ff = args.selection_file_ff[0]
 #convexity plots
-args.ymax = args.ymax[0]
-args.ymin = args.ymin[0]
+args.nxmax = args.nxmax[0]
+args.nxmin = args.nxmin[0]
+args.nymax = args.nymax[0]
+args.nymin = args.nymin[0]
+args.nzmax = args.nzmax[0]
+args.nzmin = args.nzmin[0]
 args.nbx = args.nbx[0]
 args.nby = args.nby[0]
 
@@ -2003,10 +2015,10 @@ def angle_graph_derivative():
 	ax1.xaxis.set_ticks_position('bottom')
 	ax1.yaxis.set_ticks_position('left')
 	ax1.set_xlim(0, max(frames_time))
-	if args.ymax != -1:
-		ax1.set_ylim(top = args.ymax)
-	if args.ymin != -1:
-		ax1.set_ylim(bottom = args.ymin)
+	if args.nxmax != -1:
+		ax1.set_ylim(top = args.nxmax)
+	if args.nxmin != -1:
+		ax1.set_ylim(bottom = args.nxmin)
 	if args.nbx != -1:
 		ax1.xaxis.set_major_locator(MaxNLocator(nbins=args.nbx))
 	if args.nby != -1:
@@ -2030,10 +2042,10 @@ def angle_graph_derivative():
 	ax2.xaxis.set_ticks_position('bottom')
 	ax2.yaxis.set_ticks_position('left')
 	ax2.set_xlim(0, max(frames_time))
-	if args.ymax != -1:
-		ax2.set_ylim(top = args.ymax)
-	if args.ymin != -1:
-		ax2.set_ylim(bottom = args.ymin)
+	if args.nymax != -1:
+		ax2.set_ylim(top = args.nymax)
+	if args.nymin != -1:
+		ax2.set_ylim(bottom = args.nymin)
 	if args.nbx != -1:
 		ax2.xaxis.set_major_locator(MaxNLocator(nbins=args.nbx))
 	if args.nby != -1:
@@ -2057,10 +2069,10 @@ def angle_graph_derivative():
 	ax3.xaxis.set_ticks_position('bottom')
 	ax3.yaxis.set_ticks_position('left')
 	ax3.set_xlim(0, max(frames_time))
-	if args.ymax != -1:
-		ax3.set_ylim(top = args.ymax)
-	if args.ymin != -1:
-		ax3.set_ylim(bottom = args.ymin)
+	if argsnzymax != -1:
+		ax3.set_ylim(top = args.nzmax)
+	if args.nzmin != -1:
+		ax3.set_ylim(bottom = args.nzmin)
 	if args.nbx != -1:
 		ax3.xaxis.set_major_locator(MaxNLocator(nbins=args.nbx))
 	if args.nby != -1:
