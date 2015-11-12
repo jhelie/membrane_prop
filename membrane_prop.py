@@ -1948,6 +1948,37 @@ def angle_graph_extent():
 	plt.close()
 	return
 
+def angle_write_derivative():
+	#filename
+	filename_xvg = os.getcwd() + '/' + str(args.output_folder) + '/angle/membrane_prop_angle_derivatives.xvg'
+	output_xvg = open(filename_xvg, 'w')
+	
+	#general header
+	output_xvg.write("# [evolution of normal vector derivatives - written by membrane_prop v" + str(version_nb) + "]\n")
+	output_xvg.write("# nb of frames processed = " + str(nb_frames_to_process) + "\n")
+	
+	#xvg metadata
+	output_xvg.write("@ title \"Evolution of normal vector derivatives\"\n")
+	output_xvg.write("@ xaxis label \"time (ns)\"\n")
+	output_xvg.write("@ yaxis label \"d(component)/d(axis)\"\n")
+	output_xvg.write("@ autoscale ONREAD xaxes\n")
+	output_xvg.write("@ TYPE XY\n")
+	output_xvg.write("@ view 0.15, 0.15, 0.95, 0.85\n")
+	output_xvg.write("@ legend on\n")
+	output_xvg.write("@ legend box on\n")
+	output_xvg.write("@ legend loctype view\n")
+	output_xvg.write("@ legend 0.98, 0.8\n")
+	output_xvg.write("@ legend length 3\n")
+	output_xvg.write("@ s0 legend \"dnx/dx\"\n")
+	output_xvg.write("@ s0 legend \"dny/dy\"\n")
+	output_xvg.write("@ s0 legend \"dnz/dz\"\n")
+
+	#data
+	for f_index in range(0,nb_frames_to_process):
+		results = str(frames_time[f_index]) + "	" + "{:.6e}".format(norm_dnxdx_avg[f_index]) + "	" + "{:.6e}".format(norm_dnydy_avg[f_index]) + "	" + "{:.6e}".format(norm_dnzdz_avg[f_index])
+		output_xvg.write(results + "\n")	
+	output_xvg.close()
+	return
 def angle_graph_derivative():
 	
 	#filenames
