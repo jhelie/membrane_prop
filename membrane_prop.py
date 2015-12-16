@@ -12,7 +12,7 @@ import os.path
 #=========================================================================================
 # create parser
 #=========================================================================================
-version_nb = "0.0.4b"
+version_nb = "0.0.4c"
 parser = argparse.ArgumentParser(prog = 'membrane_prop', usage='', add_help = False, formatter_class = argparse.RawDescriptionHelpFormatter, description =\
 '''
 **********************************************
@@ -1161,12 +1161,11 @@ def calculate_properties(box_dim, f_nb):								#DONE
 	tmp_lower = np.copy(tmp_lip_coords["lower"])
 
 	#calculate middle of bilayer and relative coordinate of upper and lower leaflets assuming the z is the normal to the bilayer
-	tmp_z_up = np.average(tmp_upper[:,2])
-	tmp_z_lw = np.average(tmp_lower[:,2])
-	tmp_z_delta = (tmp_z_up - tmp_z_lw)/float(2)
-	tmp_z_mid = tmp_z_lw + tmp_z_delta
-	tmp_upper[:,2] -= tmp_z_delta
-	tmp_lower[:,2] += tmp_z_delta
+	cog_up = np.average(tmp_upper, axis = 0)
+	cog_lw = np.average(tmp_lower, axis = 0)
+	cog_delta = (cog_up - cog_lw) / float(2)
+	tmp_upper -= cog_delta
+	tmp_lower += cog_delta
 	tmp_both = np.concatenate((np.float32(tmp_upper), np.float32(tmp_lower)))
 	
 	#downsample using voxel filtering
@@ -1293,9 +1292,9 @@ def calculate_properties(box_dim, f_nb):								#DONE
 			z_lower += cog_lw_rotated_z - norm_z_middle
 				
 		else:
-			z_upper += tmp_z_up - tmp_z_mid
-			z_lower += tmp_z_lw - tmp_z_mid
-			norm_z_middle = tmp_z_mid
+			z_upper += cog_delta[2]
+			z_lower -= cog_delta[2]
+			norm_z_middle = cog_lw[2] + cog_delta[2]
 							
 		#density profile: particles
 		#--------------------------
